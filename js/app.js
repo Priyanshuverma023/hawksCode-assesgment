@@ -1,1303 +1,1027 @@
 'use strict';
 
-const STORAGE_KEY = 'ssa_assessments';
-const TOTAL_QUESTIONS = 80;
+// ─── Config ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY   = 'ssa_v2';
+const QUESTIONS_PER_CATEGORY = 10;   // randomly pick 10 from each pool
 
-let activeToast = null;
-let currentState = {
-    employeeData: null,
-    currentQuestion: 0,
-    answers: [],
-    assessmentInProgress: false
+// ─── Question Pools (15 per category, scenario-based psychometric) ───────────
+const questionPools = {
+  Communication: [
+    { id:'c01', text:'During a project kickoff, your manager gives confusing instructions. You would clarify in the moment rather than proceed and figure it out later.' },
+    { id:'c02', text:'When a colleague misunderstands your message over chat, you prefer to call them rather than write a longer explanation.' },
+    { id:'c03', text:'You are presenting quarterly results to senior leadership. Even when challenged, you maintain your composure and address concerns clearly.' },
+    { id:'c04', text:'You find it easy to adjust your vocabulary and tone when explaining a technical topic to a non-technical stakeholder.' },
+    { id:'c05', text:'After sending an important email, you follow up to confirm the recipient understood the key actions required.' },
+    { id:'c06', text:'In a heated team debate, you listen fully before forming your response rather than preparing your rebuttal while others speak.' },
+    { id:'c07', text:'You can summarise a complex 30-minute discussion into three clear bullet points without losing key nuance.' },
+    { id:'c08', text:'When a client gives vague feedback ("make it pop"), you probe with specific questions rather than guessing what they mean.' },
+    { id:'c09', text:'You are comfortable delivering bad news — like a delayed deadline — directly and professionally, without sugarcoating.' },
+    { id:'c10', text:'During remote meetings, you actively use non-verbal signals (camera on, nodding, reactions) to show engagement.' },
+    { id:'c11', text:'You tailor written reports differently for a CEO briefing versus a team operations update.' },
+    { id:'c12', text:'If a colleague interrupts you mid-sentence repeatedly, you address it calmly without letting it escalate.' },
+    { id:'c13', text:'You feel confident moderating a discussion where two senior stakeholders strongly disagree.' },
+    { id:'c14', text:'You proactively share relevant information with your team even when nobody specifically asked for it.' },
+    { id:'c15', text:'When receiving feedback on your work, your first instinct is to understand the perspective rather than defend your choices.' },
+  ],
+  Leadership: [
+    { id:'l01', text:'When your team is demotivated after a project failure, you take steps to rebuild morale before pushing toward the next deadline.' },
+    { id:'l02', text:'You spot a process inefficiency in another department. Even though it is outside your remit, you raise it with the right people.' },
+    { id:'l03', text:'When two team members have a recurring conflict, you address it directly rather than waiting for it to resolve itself.' },
+    { id:'l04', text:'You invest time in helping junior colleagues grow, even when it slows down your own output.' },
+    { id:'l05', text:'Before starting a new initiative, you define clear success metrics so the team knows exactly what "done" looks like.' },
+    { id:'l06', text:'Under a tight deadline with incomplete information, you make a call and commit to it rather than stalling for certainty.' },
+    { id:'l07', text:'You delegate important tasks to others even when you believe you could do them better yourself.' },
+    { id:'l08', text:'You consciously create space for quieter team members to contribute in meetings dominated by louder voices.' },
+    { id:'l09', text:'After a significant setback, you conduct a structured review to understand what went wrong before moving forward.' },
+    { id:'l10', text:'You deliver honest performance feedback to a high-performing team member who has a blind spot.' },
+    { id:'l11', text:'When you commit to something, colleagues can count on it being done — even if circumstances change.' },
+    { id:'l12', text:'You can articulate a clear "why" behind decisions to bring the team along, not just issue directives.' },
+    { id:'l13', text:'When facing pressure from leadership to cut corners, you push back constructively while still meeting the core objective.' },
+    { id:'l14', text:'You actively champion ideas from your team even when you personally prefer a different approach.' },
+    { id:'l15', text:'You regularly check in on your team\'s capacity and wellbeing, not just task completion.' },
+  ],
+  Confidence: [
+    { id:'cf01', text:'When asked a question you do not know the answer to in a meeting, you acknowledge it openly rather than bluffing.' },
+    { id:'cf02', text:'You are comfortable presenting your work-in-progress to senior stakeholders, knowing it is not yet perfect.' },
+    { id:'cf03', text:'After making a visible mistake in front of peers, you recover quickly without dwelling on it.' },
+    { id:'cf04', text:'You trust your own judgment enough to disagree with a popular opinion when you have evidence to support your view.' },
+    { id:'cf05', text:'When negotiating your salary or project scope, you advocate for what you believe is fair rather than accepting the first offer.' },
+    { id:'cf06', text:'You volunteer to lead a high-stakes presentation rather than waiting to be assigned.' },
+    { id:'cf07', text:'Constructive criticism from your manager motivates you to improve rather than making you doubt your abilities.' },
+    { id:'cf08', text:'You take on stretch assignments outside your comfort zone because you believe you can grow into them.' },
+    { id:'cf09', text:'In a room full of experts, you still feel confident contributing your perspective.' },
+    { id:'cf10', text:'When a project you championed fails, you own it publicly rather than distancing yourself from the outcome.' },
+    { id:'cf11', text:'You can make a significant decision with 70% of the information rather than waiting for complete certainty.' },
+    { id:'cf12', text:'You speak up immediately when you notice something going wrong, even if it means challenging a senior colleague.' },
+    { id:'cf13', text:'You genuinely believe your contributions make a meaningful difference to your team\'s outcomes.' },
+    { id:'cf14', text:'When starting something entirely new, you approach the learning curve with excitement rather than anxiety.' },
+    { id:'cf15', text:'Receiving public recognition feels natural to you — you accept it gracefully without deflecting or minimising your role.' },
+  ],
+  Teamwork: [
+    { id:'t01', text:'When a teammate is overwhelmed, you proactively offer to take on part of their workload without being asked.' },
+    { id:'t02', text:'In a group project where credit is shared equally, you contribute as fully as if you were solely responsible.' },
+    { id:'t03', text:'When a team decision goes against your recommendation, you commit to executing it fully rather than doing it half-heartedly.' },
+    { id:'t04', text:'You acknowledge a colleague\'s contribution publicly when their idea leads to a team win.' },
+    { id:'t05', text:'When a new teammate joins, you go out of your way to help them integrate and get up to speed.' },
+    { id:'t06', text:'In brainstorming sessions, you build on others\' ideas rather than immediately pushing your own.' },
+    { id:'t07', text:'You surface team issues early — even uncomfortable ones — rather than letting problems simmer.' },
+    { id:'t08', text:'You keep your teammates informed of your progress, blockers, and changes in priority without being prompted.' },
+    { id:'t09', text:'When a colleague is underperforming and affecting the team, you address it with them directly and supportively.' },
+    { id:'t10', text:'You treat team agreements (stand-ups, deadlines, norms) as commitments, not suggestions.' },
+    { id:'t11', text:'You are equally engaged and collaborative whether working with your favourite colleague or someone you find difficult.' },
+    { id:'t12', text:'After a team success, you focus on celebrating the group effort rather than individual standouts.' },
+    { id:'t13', text:'You actively seek perspectives from team members whose background or thinking differs from yours.' },
+    { id:'t14', text:'When the team is under pressure, you stay calm and solution-focused rather than adding to the tension.' },
+    { id:'t15', text:'You reflect on your role in team dynamics and take steps to improve how you show up for others.' },
+  ],
 };
 
-const assessmentQuestions = [
-// ─── COMMUNICATION (20 questions, indices 0–19) ───────────────────────────
-{
-    category: 'Communication',
-    question: 'How effectively do you communicate your ideas?',
-    description: 'Rate your ability to express yourself clearly.',
-    options: [
-        { text: 'Struggles to express ideas clearly', value: 1 },
-        { text: 'Communicates with some clarity', value: 2 },
-        { text: 'Communicates ideas effectively', value: 3 },
-        { text: 'Excellent communicator with exceptional clarity', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you listen to feedback?',
-    description: 'Rate your receptiveness to constructive criticism.',
-    options: [
-        { text: 'Rarely listens to feedback', value: 1 },
-        { text: 'Sometimes listens to feedback', value: 2 },
-        { text: 'Actively listens to feedback', value: 3 },
-        { text: 'Excellent listener, always seeks feedback', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you handle difficult conversations?',
-    description: 'Rate your approach to challenging discussions.',
-    options: [
-        { text: 'Avoids difficult conversations', value: 1 },
-        { text: 'Handles with some discomfort', value: 2 },
-        { text: 'Handles conversations professionally', value: 3 },
-        { text: 'Navigates with skill and empathy', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you adapt your communication style?',
-    description: 'Rate your ability to adjust communication for different audiences.',
-    options: [
-        { text: 'Uses same style with everyone', value: 1 },
-        { text: 'Occasionally adapts communication', value: 2 },
-        { text: 'Adapts well to different audiences', value: 3 },
-        { text: 'Highly adaptive and audience-aware', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you clarify information when confused?',
-    description: 'Rate your ability to ask clarifying questions.',
-    options: [
-        { text: 'Never seeks clarification', value: 1 },
-        { text: 'Sometimes asks for clarification', value: 2 },
-        { text: 'Regularly seeks clarification', value: 3 },
-        { text: 'Excellent at clarifying understanding', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How effectively do you write professional emails?',
-    description: 'Rate your written communication skills.',
-    options: [
-        { text: 'Writes unclear or unprofessional emails', value: 1 },
-        { text: 'Writes emails with some clarity', value: 2 },
-        { text: 'Writes clear and professional emails', value: 3 },
-        { text: 'Writes exceptionally clear and concise emails', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you present information to groups?',
-    description: 'Rate your public speaking and presentation skills.',
-    options: [
-        { text: 'Uncomfortable presenting to groups', value: 1 },
-        { text: 'Can present with some nervousness', value: 2 },
-        { text: 'Presents information clearly', value: 3 },
-        { text: 'Excellent public speaker and presenter', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you respond to criticism from others?',
-    description: 'Rate your ability to accept feedback without defensiveness.',
-    options: [
-        { text: 'Becomes defensive when criticized', value: 1 },
-        { text: 'Accepts criticism reluctantly', value: 2 },
-        { text: 'Accepts criticism and learns from it', value: 3 },
-        { text: 'Openly welcomes and values criticism', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you summarize complex information?',
-    description: 'Rate your ability to simplify complicated concepts.',
-    options: [
-        { text: 'Struggles to simplify information', value: 1 },
-        { text: 'Sometimes simplifies effectively', value: 2 },
-        { text: 'Simplifies complex information well', value: 3 },
-        { text: 'Exceptionally skilled at simplification', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you communicate with different personality types?',
-    description: 'Rate your ability to connect with diverse personalities.',
-    options: [
-        { text: 'Struggles with different personality types', value: 1 },
-        { text: 'Sometimes connects with different types', value: 2 },
-        { text: 'Communicates well with various personalities', value: 3 },
-        { text: 'Naturally connects with all personality types', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you ensure your message is understood?',
-    description: 'Rate your follow-up on communication effectiveness.',
-    options: [
-        { text: 'Rarely checks if message was understood', value: 1 },
-        { text: 'Sometimes verifies understanding', value: 2 },
-        { text: 'Usually ensures understanding', value: 3 },
-        { text: 'Always confirms message understanding', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you handle disagreements in meetings?',
-    description: 'Rate your ability to respectfully disagree.',
-    options: [
-        { text: 'Avoids or escalates disagreements', value: 1 },
-        { text: 'Expresses disagreement with some difficulty', value: 2 },
-        { text: 'Respectfully expresses differing views', value: 3 },
-        { text: 'Skillfully navigates disagreements', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you remember details in conversations?',
-    description: 'Rate your attention to conversation details.',
-    options: [
-        { text: 'Forgets key details from conversations', value: 1 },
-        { text: 'Remembers some conversation details', value: 2 },
-        { text: 'Remembers most important details', value: 3 },
-        { text: 'Excellent memory for conversation details', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you ask for help or information?',
-    description: 'Rate your ability to request support clearly.',
-    options: [
-        { text: 'Struggles to ask for help', value: 1 },
-        { text: 'Asks for help reluctantly', value: 2 },
-        { text: 'Asks for help when needed', value: 3 },
-        { text: 'Confidently asks for help when necessary', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you explain technical concepts?',
-    description: 'Rate your ability to make technical ideas accessible.',
-    options: [
-        { text: 'Cannot explain technical concepts', value: 1 },
-        { text: 'Explains with limited clarity', value: 2 },
-        { text: 'Explains technical concepts reasonably well', value: 3 },
-        { text: 'Explains complex concepts very clearly', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you handle being interrupted?',
-    description: 'Rate your ability to manage interruptions gracefully.',
-    options: [
-        { text: 'Gets upset or irritated when interrupted', value: 1 },
-        { text: 'Handles interruptions with some discomfort', value: 2 },
-        { text: 'Handles interruptions professionally', value: 3 },
-        { text: 'Gracefully manages interruptions', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How effectively do you communicate deadlines and expectations?',
-    description: 'Rate your clarity in setting expectations.',
-    options: [
-        { text: 'Unclear about deadlines and expectations', value: 1 },
-        { text: 'Sometimes communicates clearly', value: 2 },
-        { text: 'Usually communicates expectations clearly', value: 3 },
-        { text: 'Exceptionally clear about expectations', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How do you maintain professional tone in communications?',
-    description: 'Rate your consistency in professional communication.',
-    options: [
-        { text: 'Often too casual or unprofessional', value: 1 },
-        { text: 'Sometimes professional in tone', value: 2 },
-        { text: 'Maintains professional tone consistently', value: 3 },
-        { text: 'Always maintains impeccable professional tone', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How well do you tailor your message to the situation?',
-    description: 'Rate your ability to match communication style to context.',
-    options: [
-        { text: 'Uses the same approach regardless of situation', value: 1 },
-        { text: 'Occasionally adjusts message to context', value: 2 },
-        { text: 'Usually tailors message appropriately', value: 3 },
-        { text: 'Always perfectly calibrates message to situation', value: 4 }
-    ]
-},
-{
-    category: 'Communication',
-    question: 'How effectively do you use non-verbal communication?',
-    description: 'Rate your awareness and use of body language, tone, and presence.',
-    options: [
-        { text: 'Unaware of non-verbal signals', value: 1 },
-        { text: 'Occasionally mindful of non-verbal cues', value: 2 },
-        { text: 'Uses non-verbal communication effectively', value: 3 },
-        { text: 'Masters non-verbal communication with great impact', value: 4 }
-    ]
-},
-// ─── LEADERSHIP (20 questions, indices 20–39) ─────────────────────────────
-{
-    category: 'Leadership',
-    question: 'How do you inspire and motivate others?',
-    description: 'Rate your ability to influence and energize a team.',
-    options: [
-        { text: 'Does not motivate others', value: 1 },
-        { text: 'Motivates in limited situations', value: 2 },
-        { text: 'Effectively motivates team members', value: 3 },
-        { text: 'Exceptional at inspiring and motivating', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you take initiative and drive change?',
-    description: 'Rate your proactivity in driving projects forward.',
-    options: [
-        { text: 'Rarely takes initiative', value: 1 },
-        { text: 'Takes initiative occasionally', value: 2 },
-        { text: 'Regularly takes initiative', value: 3 },
-        { text: 'Consistently drives projects and change', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you handle team conflicts?',
-    description: 'Rate your conflict resolution approach.',
-    options: [
-        { text: 'Avoids or escalates conflicts', value: 1 },
-        { text: 'Sometimes resolves conflicts', value: 2 },
-        { text: 'Resolves most conflicts effectively', value: 3 },
-        { text: 'Expert at resolving conflicts constructively', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you develop and mentor others?',
-    description: 'Rate your commitment to developing team members.',
-    options: [
-        { text: 'Does not develop others', value: 1 },
-        { text: 'Provides minimal development', value: 2 },
-        { text: 'Actively develops team members', value: 3 },
-        { text: 'Exceptional mentor and developer', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How well do you set clear goals and objectives?',
-    description: 'Rate your goal-setting and clarity skills.',
-    options: [
-        { text: 'Sets vague or unclear goals', value: 1 },
-        { text: 'Sets some clear goals', value: 2 },
-        { text: 'Sets clear and measurable goals', value: 3 },
-        { text: 'Exceptionally skilled at goal setting', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you make decisions under pressure?',
-    description: 'Rate your decision-making during crises.',
-    options: [
-        { text: 'Freezes or makes poor decisions under pressure', value: 1 },
-        { text: 'Makes decisions reluctantly under pressure', value: 2 },
-        { text: 'Makes reasonable decisions under pressure', value: 3 },
-        { text: 'Makes excellent decisions under pressure', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How well do you delegate responsibilities?',
-    description: 'Rate your ability to empower others through delegation.',
-    options: [
-        { text: 'Does not delegate effectively', value: 1 },
-        { text: 'Delegates reluctantly or unclear', value: 2 },
-        { text: 'Delegates effectively', value: 3 },
-        { text: 'Exceptional at strategic delegation', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you create a positive team environment?',
-    description: 'Rate your ability to foster team culture.',
-    options: [
-        { text: 'Creates a negative or tense environment', value: 1 },
-        { text: 'Creates a somewhat positive environment', value: 2 },
-        { text: 'Creates a positive team environment', value: 3 },
-        { text: 'Creates an exceptionally positive culture', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you handle failure and setbacks?',
-    description: 'Rate your resilience and learning from failures.',
-    options: [
-        { text: 'Blames others or gives up after failure', value: 1 },
-        { text: 'Struggles but eventually recovers', value: 2 },
-        { text: 'Learns from failures and moves forward', value: 3 },
-        { text: 'Turns failures into learning opportunities', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you provide constructive feedback?',
-    description: 'Rate your feedback delivery skills.',
-    options: [
-        { text: 'Feedback is unclear or harsh', value: 1 },
-        { text: 'Feedback is sometimes constructive', value: 2 },
-        { text: 'Provides constructive feedback consistently', value: 3 },
-        { text: 'Delivers feedback with exceptional skill', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How well do you follow through on commitments?',
-    description: 'Rate your reliability in following through.',
-    options: [
-        { text: 'Rarely follows through', value: 1 },
-        { text: 'Sometimes follows through', value: 2 },
-        { text: 'Usually follows through on commitments', value: 3 },
-        { text: 'Always follows through reliably', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you build trust with your team?',
-    description: 'Rate your ability to establish trust.',
-    options: [
-        { text: 'Struggles to build trust', value: 1 },
-        { text: 'Builds trust slowly', value: 2 },
-        { text: 'Builds trust effectively', value: 3 },
-        { text: 'Builds strong trust relationships quickly', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you handle different working styles?',
-    description: 'Rate your adaptability to diverse team members.',
-    options: [
-        { text: 'Struggles with different work styles', value: 1 },
-        { text: 'Sometimes accommodates different styles', value: 2 },
-        { text: 'Accommodates different working styles', value: 3 },
-        { text: 'Excels at working with diverse styles', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you encourage innovation and creativity?',
-    description: 'Rate your support for new ideas.',
-    options: [
-        { text: 'Discourages new ideas', value: 1 },
-        { text: 'Tolerates new ideas reluctantly', value: 2 },
-        { text: 'Encourages innovation and creativity', value: 3 },
-        { text: 'Actively champions innovation', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How well do you communicate vision and strategy?',
-    description: 'Rate your ability to articulate direction.',
-    options: [
-        { text: 'Vision is unclear or unstated', value: 1 },
-        { text: 'Vision is somewhat communicated', value: 2 },
-        { text: 'Communicates vision reasonably well', value: 3 },
-        { text: 'Articulates vision with exceptional clarity', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you balance team needs with organizational needs?',
-    description: 'Rate your ability to balance competing priorities.',
-    options: [
-        { text: 'Ignores one set of needs', value: 1 },
-        { text: 'Struggles to balance both', value: 2 },
-        { text: 'Balances both reasonably well', value: 3 },
-        { text: 'Excellently balances all priorities', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you recognize and reward good performance?',
-    description: 'Rate your appreciation for team contributions.',
-    options: [
-        { text: 'Rarely recognizes good work', value: 1 },
-        { text: 'Sometimes recognizes contributions', value: 2 },
-        { text: 'Regularly recognizes good performance', value: 3 },
-        { text: 'Consistently and meaningfully recognizes excellence', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you stay informed about your team and business?',
-    description: 'Rate your awareness and engagement.',
-    options: [
-        { text: 'Often unaware of team and business issues', value: 1 },
-        { text: 'Sometimes stays informed', value: 2 },
-        { text: 'Usually stays well informed', value: 3 },
-        { text: 'Exceptionally aware and engaged', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How do you handle pressure from upper management?',
-    description: 'Rate your resilience to leadership pressure.',
-    options: [
-        { text: 'Crumbles under pressure', value: 1 },
-        { text: 'Handles pressure with difficulty', value: 2 },
-        { text: 'Handles pressure reasonably well', value: 3 },
-        { text: 'Thrives under pressure', value: 4 }
-    ]
-},
-{
-    category: 'Leadership',
-    question: 'How well do you manage your own time and priorities?',
-    description: 'Rate your personal organisation and time management.',
-    options: [
-        { text: 'Frequently misses deadlines or is disorganised', value: 1 },
-        { text: 'Manages time with some difficulty', value: 2 },
-        { text: 'Manages time and priorities effectively', value: 3 },
-        { text: 'Exceptional at prioritisation and time management', value: 4 }
-    ]
-},
-// ─── CONFIDENCE (20 questions, indices 40–59) ────────────────────────────
-{
-    category: 'Confidence',
-    question: 'How confident are you in your abilities?',
-    description: 'Rate your self-assurance in professional competencies.',
-    options: [
-        { text: 'Lacks confidence in own abilities', value: 1 },
-        { text: 'Shows limited confidence', value: 2 },
-        { text: 'Confident in most situations', value: 3 },
-        { text: 'Highly confident and assured', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle pressure and challenges?',
-    description: 'Rate your resilience under stress.',
-    options: [
-        { text: 'Struggles significantly under pressure', value: 1 },
-        { text: 'Shows some stress tolerance', value: 2 },
-        { text: 'Handles pressure well', value: 3 },
-        { text: 'Thrives under pressure', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you present yourself professionally?',
-    description: 'Rate your professional presence and demeanor.',
-    options: [
-        { text: 'Unprofessional presentation', value: 1 },
-        { text: 'Somewhat professional presence', value: 2 },
-        { text: 'Professional and poised', value: 3 },
-        { text: 'Exceptional professional presence', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How willing are you to take appropriate risks?',
-    description: 'Rate your willingness to try new approaches.',
-    options: [
-        { text: 'Overly cautious or risk-averse', value: 1 },
-        { text: 'Hesitant to take risks', value: 2 },
-        { text: 'Takes calculated risks', value: 3 },
-        { text: 'Confidently pursues appropriate risks', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle mistakes you make?',
-    description: 'Rate your ability to own mistakes.',
-    options: [
-        { text: 'Denies or blames others for mistakes', value: 1 },
-        { text: 'Reluctantly acknowledges mistakes', value: 2 },
-        { text: 'Owns mistakes and learns from them', value: 3 },
-        { text: 'Confidently addresses and learns from mistakes', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you feel about your career progression?',
-    description: 'Rate your confidence in your career trajectory.',
-    options: [
-        { text: 'Doubts career progression', value: 1 },
-        { text: 'Uncertain about career path', value: 2 },
-        { text: 'Confident in career progression', value: 3 },
-        { text: 'Highly confident and ambitious about career', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you respond to unexpected situations?',
-    description: 'Rate your ability to adapt quickly.',
-    options: [
-        { text: 'Panics or freezes in unexpected situations', value: 1 },
-        { text: 'Shows some difficulty adapting', value: 2 },
-        { text: 'Adapts reasonably well', value: 3 },
-        { text: 'Adapts quickly and confidently', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you express your opinions in meetings?',
-    description: 'Rate your willingness to share your views.',
-    options: [
-        { text: 'Never speaks up in meetings', value: 1 },
-        { text: 'Rarely shares opinions', value: 2 },
-        { text: 'Shares opinions when appropriate', value: 3 },
-        { text: 'Confidently and thoughtfully shares views', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle rejection or criticism?',
-    description: 'Rate your resilience to negative feedback.',
-    options: [
-        { text: 'Takes rejection very personally', value: 1 },
-        { text: 'Struggles with rejection', value: 2 },
-        { text: 'Handles rejection reasonably well', value: 3 },
-        { text: 'Bounces back quickly from rejection', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How confident are you in your technical skills?',
-    description: 'Rate your confidence in your expertise.',
-    options: [
-        { text: 'Lacks confidence in technical skills', value: 1 },
-        { text: 'Has limited technical confidence', value: 2 },
-        { text: 'Confident in technical abilities', value: 3 },
-        { text: 'Highly confident in technical expertise', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you approach learning new skills?',
-    description: 'Rate your confidence in acquiring new capabilities.',
-    options: [
-        { text: 'Avoids learning new skills', value: 1 },
-        { text: 'Reluctant to learn new skills', value: 2 },
-        { text: 'Willing to learn new skills', value: 3 },
-        { text: 'Eagerly pursues new learning', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you feel about making important decisions?',
-    description: 'Rate your comfort with decision-making.',
-    options: [
-        { text: 'Avoids making decisions', value: 1 },
-        { text: 'Makes decisions with reluctance', value: 2 },
-        { text: 'Makes decisions with reasonable confidence', value: 3 },
-        { text: 'Confidently makes important decisions', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle being the center of attention?',
-    description: 'Rate your comfort with visibility.',
-    options: [
-        { text: 'Very uncomfortable with attention', value: 1 },
-        { text: 'Uncomfortable but manages', value: 2 },
-        { text: 'Comfortable with attention', value: 3 },
-        { text: 'Thrives with visibility and attention', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you negotiate or advocate for yourself?',
-    description: 'Rate your assertiveness.',
-    options: [
-        { text: 'Does not advocate for self', value: 1 },
-        { text: 'Rarely advocates for self', value: 2 },
-        { text: 'Advocates for self when appropriate', value: 3 },
-        { text: 'Confidently advocates and negotiates', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you perform in high-stakes situations?',
-    description: 'Rate your composure in critical situations.',
-    options: [
-        { text: 'Falls apart in high-stakes situations', value: 1 },
-        { text: 'Struggles in high-stakes situations', value: 2 },
-        { text: 'Performs reasonably well', value: 3 },
-        { text: 'Excels in high-stakes situations', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you view your past accomplishments?',
-    description: 'Rate your acknowledgment of achievements.',
-    options: [
-        { text: 'Dismisses or minimizes accomplishments', value: 1 },
-        { text: 'Acknowledges accomplishments reluctantly', value: 2 },
-        { text: 'Appropriately acknowledges achievements', value: 3 },
-        { text: 'Confidently recognizes accomplishments', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle being challenged intellectually?',
-    description: 'Rate your comfort with intellectual challenge.',
-    options: [
-        { text: 'Avoids intellectual challenge', value: 1 },
-        { text: 'Uncomfortable with challenge', value: 2 },
-        { text: 'Welcomes reasonable challenge', value: 3 },
-        { text: 'Thrives on intellectual challenge', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How confident are you in your knowledge?',
-    description: 'Rate your comfort with your expertise level.',
-    options: [
-        { text: 'Questions knowledge constantly', value: 1 },
-        { text: 'Sometimes questions knowledge', value: 2 },
-        { text: 'Generally confident in knowledge', value: 3 },
-        { text: 'Confidently stands by your knowledge', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you handle constructive suggestions?',
-    description: 'Rate your openness to improvement suggestions.',
-    options: [
-        { text: 'Dismisses suggestions defensively', value: 1 },
-        { text: 'Reluctantly considers suggestions', value: 2 },
-        { text: 'Considers suggestions openly', value: 3 },
-        { text: 'Enthusiastically welcomes suggestions', value: 4 }
-    ]
-},
-{
-    category: 'Confidence',
-    question: 'How do you initiate conversations with new colleagues?',
-    description: 'Rate your ease of building new professional relationships.',
-    options: [
-        { text: 'Avoids initiating contact with new people', value: 1 },
-        { text: 'Initiates contact with difficulty', value: 2 },
-        { text: 'Comfortably initiates professional conversations', value: 3 },
-        { text: 'Confidently builds rapport with new people immediately', value: 4 }
-    ]
-},
-// ─── TEAMWORK (20 questions, indices 60–79) ──────────────────────────────
-{
-    category: 'Teamwork',
-    question: 'How well do you collaborate with others?',
-    description: 'Rate your ability to work effectively with teammates.',
-    options: [
-        { text: 'Struggles with collaboration', value: 1 },
-        { text: 'Collaborates with difficulty', value: 2 },
-        { text: 'Collaborates effectively', value: 3 },
-        { text: 'Exceptional team collaborator', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you contribute to team success?',
-    description: 'Rate your commitment to collective goals.',
-    options: [
-        { text: 'Focuses only on individual goals', value: 1 },
-        { text: 'Sometimes prioritizes team goals', value: 2 },
-        { text: 'Actively contributes to team success', value: 3 },
-        { text: 'Deeply committed to team achievements', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you support your team members?',
-    description: 'Rate your supportiveness toward colleagues.',
-    options: [
-        { text: 'Does not support team members', value: 1 },
-        { text: 'Provides minimal support', value: 2 },
-        { text: 'Supportive of team members', value: 3 },
-        { text: 'Highly supportive and encouraging', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle responsibilities in a team?',
-    description: 'Rate your reliability and accountability.',
-    options: [
-        { text: 'Unreliable or unaccountable', value: 1 },
-        { text: 'Sometimes fulfills responsibilities', value: 2 },
-        { text: 'Reliable and accountable', value: 3 },
-        { text: 'Exceptionally dependable teammate', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle sharing credit with the team?',
-    description: 'Rate your generosity in attributing success.',
-    options: [
-        { text: 'Takes all credit personally', value: 1 },
-        { text: 'Reluctantly shares credit', value: 2 },
-        { text: 'Shares credit fairly', value: 3 },
-        { text: 'Generously credits team members', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How well do you work toward common goals?',
-    description: 'Rate your focus on team objectives.',
-    options: [
-        { text: 'Does not work toward common goals', value: 1 },
-        { text: 'Sometimes works toward goals', value: 2 },
-        { text: 'Focuses on common goals', value: 3 },
-        { text: 'Fully aligned with team goals', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you contribute diverse perspectives?',
-    description: 'Rate your willingness to share unique viewpoints.',
-    options: [
-        { text: 'Does not contribute different perspectives', value: 1 },
-        { text: 'Rarely shares unique views', value: 2 },
-        { text: 'Contributes different perspectives', value: 3 },
-        { text: 'Actively brings diverse perspectives', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle team decisions you disagree with?',
-    description: 'Rate your ability to support team decisions.',
-    options: [
-        { text: 'Refuses to support team decisions', value: 1 },
-        { text: 'Reluctantly supports decisions', value: 2 },
-        { text: 'Supports team decisions', value: 3 },
-        { text: 'Fully commits to team decisions', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle competing interests in a team?',
-    description: 'Rate your ability to balance individual and team needs.',
-    options: [
-        { text: 'Prioritizes self over team', value: 1 },
-        { text: 'Sometimes balances interests', value: 2 },
-        { text: 'Balances interests reasonably well', value: 3 },
-        { text: 'Excellently balances all interests', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How well do you listen to team members?',
-    description: 'Rate your attentiveness to teammates.',
-    options: [
-        { text: 'Does not listen to team members', value: 1 },
-        { text: 'Listens with limited attention', value: 2 },
-        { text: 'Listens actively to team members', value: 3 },
-        { text: 'Exceptionally attentive listener', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you contribute to team meetings?',
-    description: 'Rate your participation in team discussions.',
-    options: [
-        { text: 'Does not contribute to meetings', value: 1 },
-        { text: 'Rarely participates in meetings', value: 2 },
-        { text: 'Participates in team meetings', value: 3 },
-        { text: 'Actively contributes to all meetings', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you celebrate team wins?',
-    description: 'Rate your enthusiasm for team success.',
-    options: [
-        { text: 'Does not celebrate team wins', value: 1 },
-        { text: 'Minimally celebrates wins', value: 2 },
-        { text: 'Celebrates team success', value: 3 },
-        { text: 'Enthusiastically celebrates wins', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle team conflicts affecting work?',
-    description: 'Rate your involvement in resolving team conflicts.',
-    options: [
-        { text: 'Ignores or exacerbates conflicts', value: 1 },
-        { text: 'Shows minimal involvement', value: 2 },
-        { text: 'Works to resolve conflicts', value: 3 },
-        { text: 'Actively mediates and resolves conflicts', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you ensure information is shared with the team?',
-    description: 'Rate your communication transparency.',
-    options: [
-        { text: 'Hoards information', value: 1 },
-        { text: 'Shares information reluctantly', value: 2 },
-        { text: 'Shares relevant information', value: 3 },
-        { text: 'Proactively ensures information sharing', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you help new team members integrate?',
-    description: 'Rate your support for onboarding.',
-    options: [
-        { text: 'Does not help new members', value: 1 },
-        { text: 'Provides minimal help', value: 2 },
-        { text: 'Helps new members integrate', value: 3 },
-        { text: 'Actively mentors new team members', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How well do you adapt to team changes?',
-    description: 'Rate your flexibility with team dynamics.',
-    options: [
-        { text: 'Resists team changes', value: 1 },
-        { text: 'Adapts reluctantly', value: 2 },
-        { text: 'Adapts to team changes', value: 3 },
-        { text: 'Readily embraces team changes', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you respond to team feedback?',
-    description: 'Rate your receptiveness to team input.',
-    options: [
-        { text: 'Ignores or rejects team feedback', value: 1 },
-        { text: 'Reluctantly considers feedback', value: 2 },
-        { text: 'Considers team feedback', value: 3 },
-        { text: 'Actively seeks and implements feedback', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you maintain consistency in team performance?',
-    description: 'Rate your contribution to reliable team output.',
-    options: [
-        { text: 'Performance is inconsistent', value: 1 },
-        { text: 'Sometimes maintains consistency', value: 2 },
-        { text: 'Maintains consistent performance', value: 3 },
-        { text: 'Exceptional consistency in performance', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you manage workload when a teammate needs help?',
-    description: 'Rate your willingness to step up for the team.',
-    options: [
-        { text: 'Refuses to take on extra work for others', value: 1 },
-        { text: 'Helps only when required', value: 2 },
-        { text: 'Willingly assists teammates when needed', value: 3 },
-        { text: 'Proactively steps up to keep the team moving', value: 4 }
-    ]
-},
-{
-    category: 'Teamwork',
-    question: 'How do you handle a team member who is underperforming?',
-    description: 'Rate your approach to addressing performance gaps in the team.',
-    options: [
-        { text: 'Ignores the issue or complains to others', value: 1 },
-        { text: 'Addresses it reluctantly or indirectly', value: 2 },
-        { text: 'Addresses the issue constructively', value: 3 },
-        { text: 'Proactively supports and coaches the individual', value: 4 }
-    ]
-}
+const CATEGORIES = Object.keys(questionPools);
+
+const LIKERT = [
+  { label: 'Strongly Agree',    value: 5, color: '#22c55e' },
+  { label: 'Agree',             value: 4, color: '#86efac' },
+  { label: 'Neutral',           value: 3, color: '#fbbf24' },
+  { label: 'Disagree',          value: 2, color: '#fb923c' },
+  { label: 'Strongly Disagree', value: 1, color: '#ef4444' },
 ];
 
-// ─── Safety check (fails loud in dev if count is wrong) ───────────────────
-if (assessmentQuestions.length !== TOTAL_QUESTIONS) {
-    console.error(
-        `Question count mismatch: expected ${TOTAL_QUESTIONS}, got ${assessmentQuestions.length}`
-    );
-}
-
-const domCache = {
-    welcome: null, assessment: null, results: null, sections: null,
-    questionTitle: null, questionText: null, optionsContainer: null,
-    progressFill: null, progressCurrent: null, progressTotal: null,
-    buttonPrev: null, buttonNext: null, buttonRestart: null, buttonPdf: null,
-    employeeNameInput: null, employeeRoleInput: null, formEmployee: null,
-    toast: null, scoresContainer: null, overallPercentage: null,
-    employeeNameDisplay: null
+// ─── State ────────────────────────────────────────────────────────────────────
+let state = {
+  employeeData: null,
+  selectedQuestions: {},   // { Communication: [...], ... }
+  answers: {},             // { questionId: value | 'skipped' }
+  activeCategoryIndex: 0,
+  activeQuestionIndex: 0,
+  phase: 'welcome',        // welcome | assessment | results
+  answerLocked: false,     // ✅ PREVENT MULTIPLE CLICKS
 };
 
-function cacheDOM() {
-    domCache.welcome            = document.getElementById('ssa-welcome');
-    domCache.assessment         = document.getElementById('ssa-assessment');
-    domCache.results            = document.getElementById('ssa-results');
-    domCache.sections           = document.querySelectorAll('.ssa-section');
-    domCache.questionTitle      = document.getElementById('ssa-question-title');
-    domCache.questionText       = document.getElementById('ssa-question-text');
-    domCache.optionsContainer   = document.getElementById('ssa-options');
-    domCache.progressFill       = document.getElementById('ssa-progress-fill');
-    domCache.progressCurrent    = document.getElementById('ssa-progress-current');
-    domCache.progressTotal      = document.getElementById('ssa-progress-total');
-    domCache.buttonPrev         = document.getElementById('ssa-btn-prev');
-    domCache.buttonNext         = document.getElementById('ssa-btn-next');
-    domCache.buttonRestart      = document.getElementById('ssa-btn-restart');
-    domCache.buttonPdf          = document.getElementById('ssa-btn-pdf');
-    domCache.employeeNameInput  = document.getElementById('employee-name');
-    domCache.employeeRoleInput  = document.getElementById('employee-role');
-    domCache.formEmployee       = document.getElementById('ssa-form-employee');
-    domCache.toast              = document.getElementById('ssa-toast');
-    domCache.scoresContainer    = document.getElementById('ssa-scores-container');
-    domCache.overallPercentage  = document.getElementById('ssa-overall-percentage');
-    domCache.employeeNameDisplay = document.getElementById('ssa-employee-name-display');
-    domCache.progressTotal.textContent = TOTAL_QUESTIONS;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
-function bindEvents() {
-    domCache.formEmployee.addEventListener('submit', handleEmployeeSubmit);
-    domCache.buttonPrev.addEventListener('click', handlePreviousQuestion);
-    domCache.buttonNext.addEventListener('click', handleNextQuestion);
-    domCache.buttonRestart.addEventListener('click', handleRestart);
-    domCache.buttonPdf.addEventListener('click', handlePDFDownload);
-    // Delegate radio changes from the document so re-rendered options are always captured
-    document.addEventListener('change', function (e) {
-        if (e.target.name === 'question-option') {
-            handleOptionChange(e);
-        }
+function pickQuestions() {
+  const result = {};
+  CATEGORIES.forEach(cat => {
+    result[cat] = shuffle(questionPools[cat]).slice(0, QUESTIONS_PER_CATEGORY);
+  });
+  return result;
+}
+
+function getAnswer(qid) {
+  return state.answers[qid] ?? null;
+}
+
+function activeCategory() { return CATEGORIES[state.activeCategoryIndex]; }
+function activeQuestions() { return state.selectedQuestions[activeCategory()] || []; }
+function activeQuestion()  { return activeQuestions()[state.activeQuestionIndex]; }
+
+function categoryStats(cat) {
+  const qs = state.selectedQuestions[cat] || [];
+  let total = 0, count = 0, skipped = 0;
+  qs.forEach(q => {
+    const a = state.answers[q.id];
+    if (a === 'skipped') { skipped++; }
+    else if (a !== null && a !== undefined) { total += a; count++; }
+  });
+  const answered = count;
+  const pct = count > 0 ? Math.round((total / (count * 5)) * 100) : null;
+  return { answered, skipped, total: qs.length, pct, raw: count > 0 ? (total / count) : null };
+}
+
+function allCategoryStats() {
+  const result = {};
+  CATEGORIES.forEach(cat => { result[cat] = categoryStats(cat); });
+  return result;
+}
+
+function overallScore() {
+  const stats = allCategoryStats();
+  const valid = Object.values(stats).filter(s => s.pct !== null);
+  if (!valid.length) return 0;
+  return Math.round(valid.reduce((s, v) => s + v.pct, 0) / valid.length);
+}
+
+function getLevel(pct) {
+  if (pct === null) return { label: 'Not Assessed', color: '#94a3b8' };
+  if (pct >= 85)   return { label: 'Exceptional',   color: '#22c55e' };
+  if (pct >= 70)   return { label: 'Proficient',    color: '#86efac' };
+  if (pct >= 55)   return { label: 'Developing',    color: '#fbbf24' };
+  if (pct >= 40)   return { label: 'Needs Focus',   color: '#fb923c' };
+  return              { label: 'Critical Gap',   color: '#ef4444' };
+}
+
+let toastTimer = null;
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('ssa-toast');
+  if (toastTimer) clearTimeout(toastTimer);
+  t.textContent = msg;
+  t.className = `ssa-toast ssa-toast--${type} show`;
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Render: Welcome ──────────────────────────────────────────────────────────
+function renderWelcome() {
+  document.getElementById('ssa-welcome').classList.add('active');
+  document.getElementById('ssa-assessment').classList.remove('active');
+  document.getElementById('ssa-results').classList.remove('active');
+}
+
+// ─── Render: Assessment ───────────────────────────────────────────────────────
+function renderAssessment() {
+  document.getElementById('ssa-welcome').classList.remove('active');
+  document.getElementById('ssa-assessment').classList.add('active');
+  document.getElementById('ssa-results').classList.remove('active');
+
+  renderCategoryTabs();
+  renderCategoryProgress();
+  renderQuestionCard();
+}
+
+function renderCategoryTabs() {
+  const container = document.getElementById('ssa-cat-tabs');
+  container.innerHTML = '';
+  CATEGORIES.forEach((cat, i) => {
+    const stats = categoryStats(cat);
+    const isActive = i === state.activeCategoryIndex;
+    const isDone = stats.answered + stats.skipped === stats.total;
+
+    const tab = document.createElement('button');
+    tab.className = `cat-tab${isActive ? ' active' : ''}${isDone ? ' done' : ''}`;
+    tab.innerHTML = `
+      <span class="cat-tab__name">${cat}</span>
+      <span class="cat-tab__count">${stats.answered}/${stats.total}</span>
+    `;
+    tab.addEventListener('click', () => {
+      state.activeCategoryIndex = i;
+      state.activeQuestionIndex = 0;
+      renderAssessment();
     });
+    container.appendChild(tab);
+  });
 }
 
-function validateEmployeeData(name, role) {
-    const errorName = document.getElementById('error-name');
-    const errorRole = document.getElementById('error-role');
-    let isValid = true;
-
-    errorName.textContent = '';
-    errorRole.textContent = '';
-    domCache.employeeNameInput.classList.remove('error');
-    domCache.employeeRoleInput.classList.remove('error');
-
-    if (!name || name.trim().length === 0) {
-        errorName.textContent = 'Employee name is required.';
-        domCache.employeeNameInput.classList.add('error');
-        isValid = false;
-    } else if (name.trim().length < 2) {
-        errorName.textContent = 'Name must be at least 2 characters.';
-        domCache.employeeNameInput.classList.add('error');
-        isValid = false;
-    }
-
-    if (!role || role.trim().length === 0) {
-        errorRole.textContent = 'Role is required.';
-        domCache.employeeRoleInput.classList.add('error');
-        isValid = false;
-    } else if (role.trim().length < 2) {
-        errorRole.textContent = 'Role must be at least 2 characters.';
-        domCache.employeeRoleInput.classList.add('error');
-        isValid = false;
-    }
-
-    return isValid;
-}
-
-function handleEmployeeSubmit(e) {
-    e.preventDefault();
-    const name = domCache.employeeNameInput.value.trim();
-    const role = domCache.employeeRoleInput.value.trim();
-
-    if (!validateEmployeeData(name, role)) {
-        showToast('Please correct the errors above.', 'error');
-        return;
-    }
-
-    currentState.employeeData        = { name, role };
-    currentState.answers             = new Array(TOTAL_QUESTIONS).fill(null);
-    currentState.currentQuestion     = 0;
-    currentState.assessmentInProgress = true;
-
-    showSection('assessment');
-    renderQuestion();
-    showToast('Assessment started. Please answer all questions.', 'info');
-}
-
-function handlePreviousQuestion() {
-    if (currentState.currentQuestion > 0) {
-        currentState.currentQuestion--;
-        renderQuestion();
-    }
-}
-
-function handleNextQuestion() {
-    if (currentState.answers[currentState.currentQuestion] === null) {
-        showToast('Please select an answer before continuing.', 'warning');
-        return;
-    }
-    if (currentState.currentQuestion < TOTAL_QUESTIONS - 1) {
-        currentState.currentQuestion++;
-        renderQuestion();
-    } else {
-        completeAssessment();
-    }
-}
-
-function handleOptionChange(e) {
-    const value = parseInt(e.target.value, 10);
-    currentState.answers[currentState.currentQuestion] = value;
-    updateOptionUI();
-}
-
-function handleRestart() {
-    currentState = { employeeData: null, currentQuestion: 0, answers: [], assessmentInProgress: false };
-    domCache.formEmployee.reset();
-    showSection('welcome');
-    clearInputErrors();
-    showToast('Assessment reset. Start a new assessment.', 'info');
-}
-
-function handlePDFDownload() {
-    try {
-        domCache.buttonPdf.disabled = true;
-        domCache.buttonPdf.textContent = 'Generating PDF...';
-
-        const scores  = calculateScores();
-        const overall = calculateOverallScore(scores);
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageWidth = doc.internal.pageSize.getWidth();
-        let y = 15;
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(24);
-        doc.setTextColor(26, 26, 26);
-        doc.text('Soft Skills Assessment Report', pageWidth / 2, y, { align: 'center' });
-        y += 12;
-
-        doc.setDrawColor(255, 198, 47);
-        doc.setLineWidth(0.5);
-        doc.line(20, y, pageWidth - 20, y);
-        y += 8;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(11);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Employee: ${currentState.employeeData.name}`, 20, y); y += 6;
-        doc.text(`Role: ${currentState.employeeData.role}`, 20, y); y += 6;
-        doc.text(`Assessment Date: ${new Date().toLocaleDateString()}`, 20, y); y += 10;
-
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(26, 26, 26);
-        doc.text('Category Scores', 20, y); y += 8;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(11);
-        doc.setTextColor(50, 50, 50);
-        Object.entries(scores).forEach(([cat, score]) => {
-            doc.text(`• ${cat}: ${score}%`, 25, y); y += 6;
-        });
-
-        y += 5;
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.setTextColor(26, 26, 26);
-        doc.text('Overall Performance', 20, y); y += 8;
-
-        doc.setFontSize(32);
-        doc.setTextColor(255, 198, 47);
-        doc.text(`${Math.round(overall)}%`, 20, y); y += 15;
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        const msg = overall >= 75
-            ? 'Excellent soft skills proficiency. Strong candidate for leadership roles.'
-            : overall >= 60
-            ? 'Good soft skills. Recommended for continued development in key areas.'
-            : 'Soft skills require improvement. Consider targeted training programs.';
-        doc.text(msg, 20, y, { maxWidth: pageWidth - 40 }); y += 10;
-
-        doc.setDrawColor(230, 230, 230);
-        doc.setLineWidth(0.3);
-        doc.line(20, y, pageWidth - 20, y); y += 8;
-
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(9);
-        doc.setTextColor(150, 150, 150);
-        doc.text('This assessment measures four critical soft skill areas: Communication, Leadership, Confidence, and Teamwork.', 20, y, { maxWidth: pageWidth - 40 }); y += 5;
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, y);
-
-        const filename = `Soft_Skills_Assessment_${currentState.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(filename);
-        showToast('PDF downloaded successfully.', 'success');
-    } catch (err) {
-        showToast('Failed to generate PDF. Please try again.', 'error');
-    } finally {
-        domCache.buttonPdf.disabled = false;
-        domCache.buttonPdf.textContent = 'Export Results';
-    }
-}
-
-function renderQuestion() {
-    const question = assessmentQuestions[currentState.currentQuestion];
-    domCache.questionTitle.textContent = question.question;
-    domCache.questionText.textContent  = question.description;
-
-    domCache.optionsContainer.innerHTML = '';
-    question.options.forEach(option => {
-        const isSelected = currentState.answers[currentState.currentQuestion] === option.value;
-        domCache.optionsContainer.appendChild(createOptionElement(option, isSelected));
+function renderCategoryProgress() {
+  const qs = activeQuestions();
+  const container = document.getElementById('ssa-q-dots');
+  container.innerHTML = '';
+  qs.forEach((q, i) => {
+    const dot = document.createElement('button');
+    const ans = state.answers[q.id];
+    let cls = 'q-dot';
+    if (i === state.activeQuestionIndex) cls += ' active';
+    else if (ans === 'skipped') cls += ' skipped';
+    else if (ans !== null && ans !== undefined) cls += ' answered';
+    dot.className = cls;
+    dot.setAttribute('aria-label', `Question ${i + 1}`);
+    dot.addEventListener('click', () => {
+      state.activeQuestionIndex = i;
+      renderAssessment();
     });
-
-    updateProgressBar();
-    updateNavigationButtons();
+    container.appendChild(dot);
+  });
 }
 
-function createOptionElement(option, isSelected) {
-    const div   = document.createElement('div');
-    div.className = `ssa-option${isSelected ? ' ssa-option--selected' : ''}`;
+function renderQuestionCard() {
+  const q = activeQuestion();
+  const cat = activeCategory();
+  const qNum = state.activeQuestionIndex + 1;
+  const total = activeQuestions().length;
 
-    const input = document.createElement('input');
-    input.type    = 'radio';
-    input.id      = `option-${currentState.currentQuestion}-${option.value}`;
-    input.name    = 'question-option';
-    input.value   = option.value;
-    input.checked = isSelected;
-    input.className = 'ssa-option__input';
+  document.getElementById('ssa-cat-label').textContent = cat;
+  document.getElementById('ssa-q-num').textContent = `Question ${qNum} of ${total}`;
+  document.getElementById('ssa-q-text').textContent = q.text;
 
-    const label = document.createElement('label');
-    label.htmlFor   = input.id;
-    label.className = 'ssa-option__label';
+  // render Likert options
+  const container = document.getElementById('ssa-likert');
+  container.innerHTML = '';
+  const currentAnswer = getAnswer(q.id);
 
-    const span  = document.createElement('span');
-    span.className  = 'ssa-option__text';
-    span.textContent = option.text;
-
-    label.appendChild(span);
-    div.appendChild(input);
-    div.appendChild(label);
-    return div;
-}
-
-function updateOptionUI() {
-    domCache.optionsContainer.querySelectorAll('.ssa-option').forEach(el => {
-        const input = el.querySelector('input');
-        el.classList.toggle('ssa-option--selected', !!(input && input.checked));
+  LIKERT.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = `likert-btn${currentAnswer === opt.value ? ' selected' : ''}`;
+    btn.dataset.value = opt.value;
+    btn.innerHTML = `
+      <span class="likert-dot" style="background:${opt.color}"></span>
+      <span class="likert-label">${opt.label}</span>
+    `;
+    // ✅ FIX: Only allow one click per question
+    btn.addEventListener('click', (e) => {
+      if (state.answerLocked) return;  // ✅ PREVENT MULTIPLE CLICKS
+      
+      state.answerLocked = true;  // ✅ LOCK IMMEDIATELY
+      state.answers[q.id] = opt.value;
+      
+      // Update UI
+      document.querySelectorAll('.likert-btn').forEach(b => {
+        b.disabled = true;  // ✅ DISABLE ALL BUTTONS
+        b.classList.toggle('selected', parseInt(b.dataset.value) === opt.value);
+      });
+      
+      renderCategoryProgress();
+      renderCategoryTabs();
+      
+      // Advance after delay
+      setTimeout(() => {
+        state.answerLocked = false;  // ✅ UNLOCK FOR NEXT QUESTION
+        advanceQuestion();
+      }, 350);
     });
+    container.appendChild(btn);
+  });
+
+  // nav buttons
+  document.getElementById('ssa-btn-prev-q').disabled = (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
+  const isLastQ = state.activeQuestionIndex === total - 1;
+  const isLastCat = state.activeCategoryIndex === CATEGORIES.length - 1;
+  const nextBtn = document.getElementById('ssa-btn-next-q');
+  nextBtn.textContent = (isLastQ && isLastCat) ? 'Finish' : 'Next →';
 }
 
-function updateProgressBar() {
-    const pct = ((currentState.currentQuestion + 1) / TOTAL_QUESTIONS) * 100;
-    domCache.progressFill.style.width    = `${pct}%`;
-    domCache.progressCurrent.textContent = currentState.currentQuestion + 1;
+function advanceQuestion() {
+  const qs = activeQuestions();
+  if (state.activeQuestionIndex < qs.length - 1) {
+    state.activeQuestionIndex++;
+    renderAssessment();
+  } else if (state.activeCategoryIndex < CATEGORIES.length - 1) {
+    state.activeCategoryIndex++;
+    state.activeQuestionIndex = 0;
+    renderAssessment();
+    showToast(`Moving to ${activeCategory()}`, 'info');
+  } else {
+    finishAssessment();
+  }
 }
 
-function updateNavigationButtons() {
-    domCache.buttonPrev.disabled    = currentState.currentQuestion === 0;
-    const isLast                    = currentState.currentQuestion === TOTAL_QUESTIONS - 1;
-    domCache.buttonNext.textContent = isLast ? 'Complete' : 'Next';
+function prevQuestion() {
+  if (state.activeQuestionIndex > 0) {
+    state.activeQuestionIndex--;
+  } else if (state.activeCategoryIndex > 0) {
+    state.activeCategoryIndex--;
+    state.activeQuestionIndex = activeQuestions().length - 1;
+  }
+  renderAssessment();
 }
 
-function completeAssessment() {
-    currentState.assessmentInProgress = false;
-    saveAssessment();
-    renderResults();
-    showSection('results');
-    showToast('Assessment completed successfully!', 'success');
+function skipQuestion() {
+  const q = activeQuestion();
+  state.answers[q.id] = 'skipped';
+  renderCategoryProgress();
+  renderCategoryTabs();
+  advanceQuestion();
 }
 
+function nextQuestion() {
+  const isLastQ = state.activeQuestionIndex === activeQuestions().length - 1;
+  const isLastCat = state.activeCategoryIndex === CATEGORIES.length - 1;
+  if (isLastQ && isLastCat) {
+    finishAssessment();
+  } else {
+    advanceQuestion();
+  }
+}
+
+// ─── Finish ───────────────────────────────────────────────────────────────────
+function finishAssessment() {
+  saveToStorage();
+  renderResults();
+}
+
+// ─── Render: Results ─────────────────────────────────────────────────────────
 function renderResults() {
-    const scores  = calculateScores();
-    const overall = calculateOverallScore(scores);
+  document.getElementById('ssa-welcome').classList.remove('active');
+  document.getElementById('ssa-assessment').classList.remove('active');
+  document.getElementById('ssa-results').classList.add('active');
 
-    domCache.employeeNameDisplay.textContent = `${currentState.employeeData.name} - ${currentState.employeeData.role}`;
-    domCache.scoresContainer.innerHTML = '';
-    Object.entries(scores).forEach(([cat, score]) => {
-        domCache.scoresContainer.appendChild(createScoreCard(cat, score));
+  const stats = allCategoryStats();
+  const overall = overallScore();
+
+  // Header
+  document.getElementById('res-name').textContent = state.employeeData.name;
+  document.getElementById('res-role').textContent = state.employeeData.role;
+  document.getElementById('res-date').textContent = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+  document.getElementById('res-overall-pct').textContent = overall + '%';
+  document.getElementById('res-overall-level').textContent = getLevel(overall).label;
+  document.getElementById('res-overall-level').style.color = getLevel(overall).color;
+
+  // Category cards
+  const cardsContainer = document.getElementById('res-cat-cards');
+  cardsContainer.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const s = stats[cat];
+    const level = getLevel(s.pct);
+    const card = document.createElement('div');
+    card.className = 'res-cat-card';
+    card.innerHTML = `
+      <div class="res-cat-card__header">
+        <span class="res-cat-card__name">${cat}</span>
+        <span class="res-cat-card__level" style="color:${level.color}">${level.label}</span>
+      </div>
+      <div class="res-cat-card__score">${s.pct !== null ? s.pct + '%' : '—'}</div>
+      <div class="res-cat-card__bar">
+        <div class="res-cat-card__fill" style="width:${s.pct || 0}%; background:${level.color}"></div>
+      </div>
+      <div class="res-cat-card__meta">${s.answered} answered · ${s.skipped} skipped · ${s.total - s.answered - s.skipped} unanswered</div>
+    `;
+    cardsContainer.appendChild(card);
+  });
+
+  // Draw charts
+  drawRadarChart(stats);
+  drawBarChart(stats);
+  drawDistributionChart();
+}
+// ─── CHART FUNCTIONS WITH DARK TEXT ────────────────────────────────────────
+
+function drawRadarChart(stats) {
+  const canvas = document.getElementById('chart-radar');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.min(W, H) / 2 - 40;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const cats = CATEGORIES;
+  const N = cats.length;
+  const angles = cats.map((_, i) => (Math.PI * 2 * i / N) - Math.PI / 2);
+
+  // Grid rings
+  [0.2, 0.4, 0.6, 0.8, 1.0].forEach(r => {
+    ctx.beginPath();
+    angles.forEach((a, i) => {
+      const x = cx + Math.cos(a) * maxR * r;
+      const y = cy + Math.sin(a) * maxR * r;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
-    domCache.overallPercentage.textContent = Math.round(overall);
-}
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';  // ✅ DARK LINES
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // label
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';  // ✅ DARK GRAY TEXT
+    ctx.font = 'bold 10px DM Sans, sans-serif';  // ✅ BOLD
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round(r * 100) + '%', cx + 4, cy - maxR * r + 4);
+  });
 
-function createScoreCard(category, score) {
-    const card  = document.createElement('div');
-    card.className = 'ssa-score-card';
+  // Spokes
+  angles.forEach(a => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * maxR, cy + Math.sin(a) * maxR);
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';  // ✅ DARK LINES
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
 
-    const title = document.createElement('div');
-    title.className   = 'ssa-score-card__title';
-    title.textContent = category;
+  // Data polygon
+  const values = cats.map(cat => (stats[cat].pct || 0) / 100);
+  ctx.beginPath();
+  angles.forEach((a, i) => {
+    const x = cx + Math.cos(a) * maxR * values[i];
+    const y = cy + Math.sin(a) * maxR * values[i];
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(255,198,47,0.25)';
+  ctx.fill();
+  ctx.strokeStyle = '#ffc62f';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
 
-    const value = document.createElement('div');
-    value.className   = 'ssa-score-card__value';
-    value.textContent = score;
+  // Dots
+  angles.forEach((a, i) => {
+    const x = cx + Math.cos(a) * maxR * values[i];
+    const y = cy + Math.sin(a) * maxR * values[i];
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffc62f';
+    ctx.fill();
+  });
 
-    const suffix = document.createElement('span');
-    suffix.className   = 'ssa-score-card__suffix';
-    suffix.textContent = '%';
-
-    value.appendChild(suffix);
-    card.appendChild(title);
-    card.appendChild(value);
-    return card;
-}
-
-function calculateScores() {
-    const scores = { Communication: 0, Leadership: 0, Confidence: 0, Teamwork: 0 };
-    const counts = { Communication: 0, Leadership: 0, Confidence: 0, Teamwork: 0 };
-
-    assessmentQuestions.forEach((q, i) => {
-        const ans = currentState.answers[i];
-        if (ans !== null) { scores[q.category] += ans; counts[q.category]++; }
-    });
-
-    Object.keys(scores).forEach(cat => {
-        if (counts[cat] > 0) {
-            scores[cat] = Math.round((scores[cat] / counts[cat] / 4) * 100);
-        }
-    });
-    return scores;
-}
-
-function calculateOverallScore(scores) {
-    const vals = Object.values(scores);
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
-}
-
-function showSection(id) {
-    domCache.sections.forEach(s => s.classList.remove('ssa-section--active'));
-    const el = document.getElementById(`ssa-${id}`);
-    if (el) el.classList.add('ssa-section--active');
-}
-
-function showToast(message, type = 'info') {
-    if (activeToast !== null) { clearTimeout(activeToast); domCache.toast.classList.remove('show'); }
-    domCache.toast.textContent = message;
-    domCache.toast.className   = `ssa-toast ${type}`;
-    domCache.toast.classList.add('show');
-    activeToast = setTimeout(() => { domCache.toast.classList.remove('show'); activeToast = null; }, 4000);
-}
-
-function clearInputErrors() {
-    document.getElementById('error-name').textContent = '';
-    document.getElementById('error-role').textContent = '';
-    domCache.employeeNameInput.classList.remove('error');
-    domCache.employeeRoleInput.classList.remove('error');
-}
-
-function saveAssessment() {
-    try {
-        let data = { version: 1, data: [], settings: {} };
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const p = JSON.parse(stored);
-                if (p && 'version' in p && 'data' in p) data = p;
-            } catch (_) { /* use default */ }
-        }
-        const scores = calculateScores();
-        data.data.push({
-            id: Date.now(),
-            employee:  currentState.employeeData,
-            timestamp: new Date().toISOString(),
-            scores,
-            overall:   calculateOverallScore(scores),
-            answers:   currentState.answers
-        });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (_) {
-        showToast('Could not save assessment to local storage.', 'warning');
+  // Labels
+  ctx.font = 'bold 12px DM Sans, sans-serif';
+  ctx.fillStyle = '#000';  // ✅ BLACK TEXT FOR CATEGORY NAMES
+  angles.forEach((a, i) => {
+    const offset = 22;
+    const x = cx + Math.cos(a) * (maxR + offset);
+    const y = cy + Math.sin(a) * (maxR + offset);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cats[i], x, y);
+    if (stats[cats[i]].pct !== null) {
+      ctx.font = 'bold 11px DM Sans, sans-serif';  // ✅ BOLD
+      ctx.fillStyle = '#333';  // ✅ DARK GRAY FOR PERCENTAGES
+      ctx.fillText(stats[cats[i]].pct + '%', x, y + 14);
+      ctx.font = 'bold 12px DM Sans, sans-serif';
+      ctx.fillStyle = '#000';
     }
+  });
 }
 
-function initializeApp() {
-    cacheDOM();
-    bindEvents();
-    showSection('welcome');
+function drawBarChart(stats) {
+  const canvas = document.getElementById('chart-bar');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  
+  // ✅ MASSIVELY INCREASED BOTTOM PADDING - PREVENT CUT-OFF AND OVERLAP
+  const pad = { top: 40, right: 30, bottom: 120, left: 60 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const barW = chartW / CATEGORIES.length * 0.50;  // ✅ SLIGHTLY NARROWER BARS
+  const gap  = chartW / CATEGORIES.length;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ✅ Y AXIS - UNIVERSAL DARK GRAY
+  [0, 25, 50, 75, 100].forEach(v => {
+    const y = pad.top + chartH - (v / 100) * chartH;
+    
+    // Grid lines - subtle
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + chartW, y);
+    ctx.strokeStyle = v === 0 ? '#999' : '#ddd';
+    ctx.lineWidth = v === 0 ? 2 : 1;
+    ctx.stroke();
+    
+    // Y-axis labels
+    ctx.fillStyle = '#555';
+    ctx.font = 'bold 11px DM Sans, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v + '%', pad.left - 15, y);
+  });
+
+  // ✅ BARS WITH PROPER SPACING
+  CATEGORIES.forEach((cat, i) => {
+    const s = stats[cat];
+    const pct = s.pct || 0;
+    const level = getLevel(s.pct);
+    const x = pad.left + gap * i + (gap - barW) / 2;
+    const barH = (pct / 100) * chartH;
+    const y = pad.top + chartH - barH;
+
+    // Background bar
+    ctx.fillStyle = '#e8e8e8';
+    ctx.beginPath();
+    ctx.roundRect(x, pad.top, barW, chartH, [4, 4, 0, 0]);
+    ctx.fill();
+
+    // Active bar with gradient
+    const grad = ctx.createLinearGradient(x, y, x, pad.top + chartH);
+    grad.addColorStop(0, level.color);
+    grad.addColorStop(1, level.color + 'cc');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, barH > 8 ? [4, 4, 0, 0] : [2, 2, 0, 0]);
+    ctx.fill();
+
+    // ✅ BAR PERCENTAGE VALUE
+    if (s.pct !== null) {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = 'bold 14px DM Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(pct + '%', x + barW / 2, y - 12);
+    }
+
+    // ✅ CATEGORY NAME - SPLIT ACROSS TWO LINES IF LONG
+    // Position 1: First line of category (if needed)
+    ctx.fillStyle = '#444';
+    ctx.font = 'bold 11px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    
+    // ✅ POSITIONED MUCH LOWER WITH PLENTY OF SPACE
+    // Y = pad.top + chartH + space from bottom
+    const categoryY = pad.top + chartH + 35;  // 35mm below chart
+    
+    ctx.fillText(cat, x + barW / 2, categoryY);
+  });
+
+  // ✅ BOTTOM AXIS LINE
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top + chartH);
+  ctx.lineTo(pad.left + chartW, pad.top + chartH);
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // ✅ LEFT AXIS LINE (for professional look)
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + chartH);
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
-document.addEventListener('DOMContentLoaded', initializeApp);
+function drawDistributionChart() {
+  const canvas = document.getElementById('chart-dist');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Count all answers by value
+  const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  let total = 0;
+  Object.values(state.answers).forEach(v => {
+    if (v !== 'skipped' && v !== null) { counts[v] = (counts[v] || 0) + 1; total++; }
+  });
+
+  if (total === 0) return;
+
+  const pad = { top: 20, right: 20, bottom: 55, left: 45 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+  const barW = chartW / 5 * 0.6;
+  const gap  = chartW / 5;
+  const maxCount = Math.max(...Object.values(counts), 1);
+
+  // Y grid
+  [0, 0.25, 0.5, 0.75, 1].forEach(r => {
+    const v = Math.round(r * maxCount);
+    const y = pad.top + chartH - r * chartH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y);
+    ctx.lineTo(pad.left + chartW, y);
+    ctx.strokeStyle = r === 0 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.08)';  // ✅ DARK LINES
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';  // ✅ DARK TEXT FOR Y-AXIS
+    ctx.font = 'bold 10px DM Sans, sans-serif';  // ✅ BOLD
+    ctx.textAlign = 'right';
+    ctx.fillText(v, pad.left - 6, y + 3);
+  });
+
+  // Bars per Likert value
+  LIKERT.forEach((opt, i) => {
+    const count = counts[opt.value] || 0;
+    const barH = (count / maxCount) * chartH;
+    const x = pad.left + gap * i + (gap - barW) / 2;
+    const y = pad.top + chartH - barH;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.05)';  // ✅ DARK BACKGROUND
+    ctx.beginPath();
+    ctx.roundRect(x, pad.top, barW, chartH, [4,4,0,0]);
+    ctx.fill();
+
+    if (barH > 0) {
+      const grad = ctx.createLinearGradient(x, y, x, pad.top + chartH);
+      grad.addColorStop(0, opt.color);
+      grad.addColorStop(1, opt.color + '44');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, barH > 8 ? [4,4,0,0] : [2,2,0,0]);
+      ctx.fill();
+
+      // ✅ DARK TEXT ABOVE BAR - BOLD BLACK
+      ctx.fillStyle = '#000';  // ✅ BLACK TEXT - VISIBLE ON LIGHT
+      ctx.font = 'bold 12px DM Sans, sans-serif';  // ✅ LARGER BOLD
+      ctx.textAlign = 'center';
+      ctx.fillText(count, x + barW / 2, y - 8);  // ✅ MOVED HIGHER
+    }
+
+    // ✅ DARK LABEL TEXT
+    ctx.fillStyle = '#333';  // ✅ DARK GRAY - VERY VISIBLE
+    ctx.font = 'bold 10px DM Sans, sans-serif';  // ✅ BOLD
+    ctx.textAlign = 'center';
+    // wrap label
+    const words = opt.label.split(' ');
+    ctx.fillText(words[0], x + barW / 2, pad.top + chartH + 16);
+    if (words[1]) ctx.fillText(words[1], x + barW / 2, pad.top + chartH + 28);
+    
+    // ✅ DARK PERCENTAGE TEXT - DARKEST
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    ctx.fillStyle = '#000';  // ✅ BLACK TEXT
+    ctx.font = 'bold 11px DM Sans, sans-serif';  // ✅ BOLD AND LARGER
+    ctx.fillText(pct + '%', x + barW / 2, pad.top + chartH + 42);
+  });
+}
+async function generatePDF() {
+  const btn = document.getElementById('res-btn-pdf');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const PW = doc.internal.pageSize.getWidth();
+    const PH = doc.internal.pageSize.getHeight();
+    const stats = allCategoryStats();
+    const overall = overallScore();
+    let y = 0;
+
+    // ── PAGE 1: COVER PAGE ─────────────────────────────────────────────────
+    
+    // Header band
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, PW, 50, 'F');
+    doc.setFillColor(255, 198, 47);
+    doc.rect(0, 48, PW, 2, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Soft Skills Assessment', PW / 2, 18, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(180, 180, 180);
+    doc.text('Psychometric Competency Report', PW / 2, 32, { align: 'center' });
+
+    // Employee info section
+    y = 62;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+    
+    doc.text('Employee:', 20, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 26, 26);
+    doc.text(state.employeeData.name, 65, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text('Role:', 20, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 26, 26);
+    doc.text(state.employeeData.role, 65, y);
+    
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text('Date:', 20, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 26, 26);
+    doc.text(new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'}), 65, y);
+    
+    // ✅ INCREASED SPACING FOR OVERALL SCORE
+    y = 95;
+
+    // Overall score circle
+    doc.setFillColor(255, 198, 47);
+    doc.circle(PW / 2, y + 18, 20, 'F');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(32);
+    doc.setTextColor(26, 26, 26);
+    doc.text(overall + '%', PW / 2, y + 21, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text('Overall Score', PW / 2, y + 32, { align: 'center' });
+    
+    const lvl = getLevel(overall);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    const lc = hexToRgb(lvl.color);
+    doc.setTextColor(lc.r, lc.g, lc.b);
+    doc.text(lvl.label, PW / 2, y + 42, { align: 'center' });
+
+    // ✅ MAJOR SPACING INCREASE - NOW AT LINE 145
+    y = 150;
+
+    // Category score table with BETTER SPACING
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(26, 26, 26);
+    doc.text('Category Breakdown', 20, y);
+    y += 10;
+
+    CATEGORIES.forEach(cat => {
+      const s = stats[cat];
+      const catLvl = getLevel(s.pct);
+      const pctVal = s.pct !== null ? s.pct : 0;
+      const rc = hexToRgb(catLvl.color);
+
+      // Row background - ✅ LARGER ROW HEIGHT
+      doc.setFillColor(248, 248, 248);
+      doc.roundedRect(18, y - 6, PW - 36, 16, 2, 2, 'F');
+
+      // Category name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(26, 26, 26);
+      doc.text(cat, 22, y + 2);
+
+      // Progress bar
+      const barX = 75;
+      const barW2 = 75;  // ✅ FIXED WIDTH FOR CONSISTENCY
+      const barH = 6;
+      
+      // Background bar
+      doc.setFillColor(230, 230, 230);
+      doc.roundedRect(barX, y - 2, barW2, barH, 2, 2, 'F');
+      
+      // Fill bar
+      doc.setFillColor(rc.r, rc.g, rc.b);
+      doc.roundedRect(barX, y - 2, barW2 * pctVal / 100, barH, 2, 2, 'F');
+
+      // Percentage value - ✅ BOLD AND LARGER
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(s.pct !== null ? s.pct + '%' : '—', PW - 22, y + 2, { align: 'right' });
+
+      // Stats text
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`${s.answered} answered · ${s.skipped} skipped`, PW - 22, y + 8, { align: 'right' });
+
+      y += 18;  // ✅ INCREASED FROM 17 to 18
+    });
+
+    // ✅ MAJOR SPACING - CHARTS ON NEW LAYOUT
+    y += 8;
+
+    // Radar and Bar charts on same page with better sizing
+    const radarCanvas = document.getElementById('chart-radar');
+    try {
+      const radarImg = radarCanvas.toDataURL('image/png');
+      if (radarImg && radarImg.length > 100) {
+        doc.addImage(radarImg, 'PNG', 15, y, 75, 65);
+      }
+    } catch (err) {
+      console.warn('Radar chart rendering skipped', err);
+    }
+
+    const barCanvas = document.getElementById('chart-bar');
+    try {
+      const barImg = barCanvas.toDataURL('image/png');
+      if (barImg && barImg.length > 100) {
+        doc.addImage(barImg, 'PNG', 100, y, 75, 65);
+      }
+    } catch (err) {
+      console.warn('Bar chart rendering skipped', err);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── PAGE 2: DETAILED QUESTION RESPONSES ──────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+    
+    doc.addPage();
+    y = 15;
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(26, 26, 26);
+    doc.text('Detailed Question Responses', 20, y);
+    
+    y += 6;
+    doc.setFillColor(255, 198, 47);
+    doc.rect(20, y, PW - 40, 1.5, 'F');
+    y += 8;
+
+    CATEGORIES.forEach(cat => {
+      // Check if need new page
+      if (y > PH - 40) {
+        doc.addPage();
+        y = 15;
+      }
+
+      // Category header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(255, 255, 255);
+      doc.setFillColor(26, 26, 26);
+      doc.rect(18, y - 6, PW - 36, 12, 'F');
+      doc.text(cat, 22, y + 1);
+      y += 14;
+
+      const qs = state.selectedQuestions[cat] || [];
+      qs.forEach((q, qi) => {
+        // Check page break - ✅ MORE SPACE NEEDED
+        if (y > PH - 30) {
+          doc.addPage();
+          y = 15;
+        }
+
+        const ans = state.answers[q.id];
+        let ansLabel = '—';
+        let ansColor = { r: 150, g: 150, b: 150 };
+        
+        if (ans === 'skipped') {
+          ansLabel = 'Skipped';
+          ansColor = { r: 180, g: 180, b: 180 };
+        } else if (ans !== null && ans !== undefined) {
+          const opt = LIKERT.find(l => l.value === ans);
+          if (opt) {
+            ansLabel = opt.label;
+            ansColor = hexToRgb(opt.color);
+          }
+        }
+
+        // ✅ QUESTION TEXT ONLY - NO ANSWER ON SAME LINE
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(40, 40, 40);
+        
+        const questionText = `Q${qi + 1}. ${q.text}`;
+        const lines = doc.splitTextToSize(questionText, PW - 50);
+        
+        // Print question 
+        doc.text(lines, 20, y);
+        
+        // ✅ MOVE Y POSITION AFTER QUESTION
+        const questionHeight = lines.length * 4.8;
+        y += questionHeight;
+
+        // ✅ ANSWER LABEL ON SEPARATE LINE - INDENTED AND COLORED
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b);
+        doc.text(ansLabel, 25, y);  // Indented by 5mm
+
+        // ✅ ADD SPACE AFTER ANSWER
+        y += 8;
+      });
+
+      y += 5;  // Space between categories
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── PAGE 3: RESPONSE DISTRIBUTION ───────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+    
+    doc.addPage();
+    y = 15;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(26, 26, 26);
+    doc.text('Response Distribution', 20, y);
+    y += 8;
+
+    const distCanvas = document.getElementById('chart-dist');
+    try {
+      const distImg = distCanvas.toDataURL('image/png');
+      if (distImg && distImg.length > 100) {
+        doc.addImage(distImg, 'PNG', 15, y, PW - 30, 70);
+      }
+    } catch (err) {
+      console.warn('Distribution chart rendering skipped', err);
+    }
+
+    // Footer
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(
+      'This psychometric assessment evaluates Communication, Leadership, Confidence & Teamwork using a 5-point Likert scale.',
+      PW / 2,
+      PH - 10,
+      { align: 'center', maxWidth: PW - 40 }
+    );
+
+    const fname = `SSA_${state.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fname);
+    showToast('PDF exported successfully!', 'success');
+  } catch (err) {
+    console.error(err);
+    showToast('PDF generation failed. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Export PDF';
+  }
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+
+
+// ─── Storage ─────────────────────────────────────────────────────────────────
+function saveToStorage() {
+  try {
+    let stored = { version: 2, assessments: [] };
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { try { const p = JSON.parse(raw); if (p.assessments) stored = p; } catch(_){} }
+    stored.assessments.push({
+      id: Date.now(),
+      employee: state.employeeData,
+      timestamp: new Date().toISOString(),
+      answers: state.answers,
+      stats: allCategoryStats(),
+      overall: overallScore(),
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  } catch(_) {}
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  // Welcome form
+  document.getElementById('ssa-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('inp-name').value.trim();
+    const role = document.getElementById('inp-role').value.trim();
+    const nameErr = document.getElementById('err-name');
+    const roleErr = document.getElementById('err-role');
+    nameErr.textContent = '';
+    roleErr.textContent = '';
+    let ok = true;
+    if (!name || name.length < 2) { nameErr.textContent = 'Please enter a valid name.'; ok = false; }
+    if (!role || role.length < 2) { roleErr.textContent = 'Please enter a valid role.'; ok = false; }
+    if (!ok) return;
+
+    state.employeeData = { name, role };
+    state.selectedQuestions = pickQuestions();
+    state.answers = {};
+    state.activeCategoryIndex = 0;
+    state.activeQuestionIndex = 0;
+    state.answerLocked = false;  // ✅ RESET LOCK
+    renderAssessment();
+  });
+
+  // Assessment navigation
+  document.getElementById('ssa-btn-prev-q').addEventListener('click', prevQuestion);
+  document.getElementById('ssa-btn-next-q').addEventListener('click', nextQuestion);
+  document.getElementById('ssa-btn-skip').addEventListener('click', skipQuestion);
+  document.getElementById('ssa-btn-finish-early').addEventListener('click', () => {
+    const anyAnswered = Object.values(state.answers).some(v => v !== 'skipped');
+    if (!anyAnswered) { showToast('Please answer at least one question.', 'warning'); return; }
+    finishAssessment();
+  });
+
+  // Results
+  document.getElementById('res-btn-pdf').addEventListener('click', generatePDF);
+  document.getElementById('res-btn-restart').addEventListener('click', () => {
+    state = { 
+      employeeData: null, 
+      selectedQuestions: {}, 
+      answers: {}, 
+      activeCategoryIndex: 0, 
+      activeQuestionIndex: 0, 
+      phase: 'welcome',
+      answerLocked: false  // ✅ RESET LOCK
+    };
+    document.getElementById('ssa-form').reset();
+    document.getElementById('err-name').textContent = '';
+    document.getElementById('err-role').textContent = '';
+    document.getElementById('ssa-welcome').classList.add('active');
+    document.getElementById('ssa-assessment').classList.remove('active');
+    document.getElementById('ssa-results').classList.remove('active');
+  });
+
+  // Start screen active
+  document.getElementById('ssa-welcome').classList.add('active');
+}
+
+document.addEventListener('DOMContentLoaded', init);

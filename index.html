@@ -1,145 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Soft Skills Assessment Tool">
-    <meta name="theme-color" content="#f5f4ed">
-    <title>Soft Skills Assessment</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Psychometric Soft Skills Assessment Tool">
+  <title>Soft Skills Assessment</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <div class="ssa-container">
-        <header class="ssa-header">
-            <div class="ssa-header__content">
-                <h1 class="ssa-header__title">Soft Skills Assessment</h1>
-                <p class="ssa-header__subtitle">Evaluate core competencies</p>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="app-header__logo">S</div>
+    <span class="app-header__title">Soft Skills Assessment</span>
+    <span class="app-header__sub">Psychometric Evaluation Tool</span>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       WELCOME SECTION
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section id="ssa-welcome" class="section">
+    <div style="max-width:1040px;margin:0 auto;padding:40px 24px 80px;">
+      <div class="welcome-grid">
+
+        <!-- Left: Info -->
+        <div class="welcome-left">
+          <div class="welcome-hero-tag">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="6"/></svg>
+            Psychometric Assessment
+          </div>
+          <h1 class="welcome-title">
+            Discover your <em>soft skill</em> strengths
+          </h1>
+          <p class="welcome-desc">
+            This assessment uses validated psychometric questions — real workplace scenarios, not abstract theory. 
+            Each run draws a fresh randomised set of questions. Answer what feels relevant, skip the rest.
+          </p>
+
+          <div class="welcome-stats">
+            <div class="welcome-stat">
+              <div class="welcome-stat__num">40</div>
+              <div class="welcome-stat__label">Questions</div>
             </div>
-        </header>
-
-        <main class="ssa-main">
-            <div id="ssa-welcome" class="ssa-section ssa-section--active">
-                <div class="ssa-welcome">
-                    <div class="ssa-welcome__card">
-                        <h2 class="ssa-welcome__title">Employee Assessment</h2>
-                        <p class="ssa-welcome__text">This assessment evaluates four key soft skill areas. Each section takes 15-20 minutes.</p>
-                        
-                        <form id="ssa-form-employee" class="ssa-form" novalidate>
-                            <div class="ssa-form__group">
-                                <label for="employee-name" class="ssa-form__label">Employee Name</label>
-                                <input 
-                                    type="text" 
-                                    id="employee-name" 
-                                    class="ssa-form__input" 
-                                    placeholder="Enter full name"
-                                    required
-                                    aria-required="true"
-                                    maxlength="100">
-                                <span class="ssa-form__error" id="error-name"></span>
-                            </div>
-
-                            <div class="ssa-form__group">
-                                <label for="employee-role" class="ssa-form__label">Role</label>
-                                <input 
-                                    type="text" 
-                                    id="employee-role" 
-                                    class="ssa-form__input" 
-                                    placeholder="Enter job role"
-                                    required
-                                    aria-required="true"
-                                    maxlength="100">
-                                <span class="ssa-form__error" id="error-role"></span>
-                            </div>
-
-                            <button type="submit" class="ssa-button ssa-button--primary">Start Assessment</button>
-                        </form>
-
-                        <div class="ssa-welcome__skills">
-                            <h3 class="ssa-welcome__skills-title">Assessment Areas</h3>
-                            <ul class="ssa-skills-list">
-                                <li class="ssa-skills-list__item">
-                                    <span class="ssa-skills-list__icon">●</span>
-                                    <span>Communication</span>
-                                </li>
-                                <li class="ssa-skills-list__item">
-                                    <span class="ssa-skills-list__icon">●</span>
-                                    <span>Leadership</span>
-                                </li>
-                                <li class="ssa-skills-list__item">
-                                    <span class="ssa-skills-list__icon">●</span>
-                                    <span>Confidence</span>
-                                </li>
-                                <li class="ssa-skills-list__item">
-                                    <span class="ssa-skills-list__icon">●</span>
-                                    <span>Teamwork</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+            <div class="welcome-stat">
+              <div class="welcome-stat__num">4</div>
+              <div class="welcome-stat__label">Categories</div>
             </div>
+            <div class="welcome-stat">
+              <div class="welcome-stat__num">~10</div>
+              <div class="welcome-stat__label">Minutes</div>
+            </div>
+            <div class="welcome-stat">
+              <div class="welcome-stat__num">5pt</div>
+              <div class="welcome-stat__label">Likert Scale</div>
+            </div>
+          </div>
 
-            <div id="ssa-assessment" class="ssa-section">
-                <div class="ssa-assessment">
-                    <div class="ssa-progress">
-                        <div class="ssa-progress__bar">
-                            <div id="ssa-progress-fill" class="ssa-progress__fill"></div>
-                        </div>
-                        <p class="ssa-progress__text"><span id="ssa-progress-current">1</span> / <span id="ssa-progress-total">16</span></p>
-                    </div>
+          <div class="welcome-categories">
+            <div class="welcome-cat">
+              <span class="welcome-cat__dot" style="background:#38bdf8"></span>
+              <span class="welcome-cat__name">Communication</span>
+              <span class="welcome-cat__desc">10 scenario questions</span>
+            </div>
+            <div class="welcome-cat">
+              <span class="welcome-cat__dot" style="background:#a78bfa"></span>
+              <span class="welcome-cat__name">Leadership</span>
+              <span class="welcome-cat__desc">10 scenario questions</span>
+            </div>
+            <div class="welcome-cat">
+              <span class="welcome-cat__dot" style="background:#fb923c"></span>
+              <span class="welcome-cat__name">Confidence</span>
+              <span class="welcome-cat__desc">10 scenario questions</span>
+            </div>
+            <div class="welcome-cat">
+              <span class="welcome-cat__dot" style="background:#4ade80"></span>
+              <span class="welcome-cat__name">Teamwork</span>
+              <span class="welcome-cat__desc">10 scenario questions</span>
+            </div>
+          </div>
+        </div>
 
-                    <div class="ssa-question">
-                        <h2 id="ssa-question-title" class="ssa-question__title"></h2>
-                        <p id="ssa-question-text" class="ssa-question__text"></p>
+        <!-- Right: Form -->
+        <div class="form-card">
+          <div class="form-card__title">Begin your assessment</div>
+          <div class="form-card__sub">Enter your details to generate a personalised report.</div>
 
-                        <div id="ssa-options" class="ssa-options"></div>
-
-                        <div class="ssa-actions">
-                            <button id="ssa-btn-prev" class="ssa-button ssa-button--secondary" aria-label="Previous question">Previous</button>
-                            <button id="ssa-btn-next" class="ssa-button ssa-button--primary" aria-label="Next question">Next</button>
-                        </div>
-                    </div>
-                </div>
+          <form id="ssa-form" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="inp-name">Full Name</label>
+              <input class="form-input" type="text" id="inp-name" placeholder="e.g. Sarah Mitchell" maxlength="100" autocomplete="name">
+              <span class="form-error" id="err-name"></span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inp-role">Job Role</label>
+              <input class="form-input" type="text" id="inp-role" placeholder="e.g. Product Manager" maxlength="100" autocomplete="organization-title">
+              <span class="form-error" id="err-role"></span>
             </div>
 
-            <div id="ssa-results" class="ssa-section">
-                <div class="ssa-results">
-                    <div class="ssa-results__header">
-                        <h2 class="ssa-results__title">Assessment Complete</h2>
-                        <p class="ssa-results__subtitle" id="ssa-employee-name-display"></p>
-                    </div>
-
-                    <div class="ssa-scores">
-                        <div id="ssa-scores-container" class="ssa-scores__grid"></div>
-                    </div>
-
-                    <div class="ssa-results__summary">
-                        <h3 class="ssa-results__summary-title">Overall Score</h3>
-                        <div class="ssa-overall-score">
-                            <div class="ssa-overall-score__circle">
-                                <span id="ssa-overall-percentage" class="ssa-overall-score__percentage">0</span>
-                                <span class="ssa-overall-score__text">%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ssa-results__actions">
-                        <button id="ssa-btn-restart" class="ssa-button ssa-button--primary">Start New Assessment</button>
-                        <button id="ssa-btn-pdf" class="ssa-button ssa-button--secondary">Export Results</button>
-                    </div>
-                </div>
+            <div style="background:rgba(255,198,47,0.06);border:1px solid rgba(255,198,47,0.2);border-radius:8px;padding:14px 16px;margin-bottom:24px;">
+              <div style="font-size:12px;color:#94a3b8;line-height:1.6;">
+                <strong style="color:#ffc62f;display:block;margin-bottom:4px;">How it works</strong>
+                Rate each statement using a 5-point scale from <em>Strongly Agree</em> to <em>Strongly Disagree</em>. 
+                You can skip any question — no category is mandatory.
+              </div>
             </div>
-        </main>
 
-        <footer class="ssa-footer">
-            <p class="ssa-footer__text">Soft Skills Assessment Tool</p>
-        </footer>
+            <button type="submit" class="btn btn-primary btn-lg btn-full">
+              Start Assessment →
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       ASSESSMENT SECTION
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section id="ssa-assessment" class="section">
+
+    <!-- Category tab bar -->
+    <div class="cat-tabs-bar">
+      <div id="ssa-cat-tabs" style="display:flex;gap:4px;"></div>
     </div>
 
-    <div id="ssa-toast" class="ssa-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <!-- Question dots -->
+    <div class="q-dots-bar" id="ssa-q-dots"></div>
 
-    <script src="js/app.js" defer></script>
+    <!-- Question card -->
+    <div class="q-card-wrap">
+      <div class="q-card">
+        <div class="q-card__meta">
+          <span class="q-card__cat-badge" id="ssa-cat-label">Communication</span>
+          <span class="q-card__num" id="ssa-q-num">Question 1 of 10</span>
+        </div>
+
+        <p class="q-card__text" id="ssa-q-text"></p>
+
+        <div class="likert-options" id="ssa-likert"></div>
+
+        <div class="q-actions">
+          <button class="btn btn-ghost btn-sm" id="ssa-btn-prev-q">← Back</button>
+          <div class="q-actions__right">
+            <button class="btn btn-ghost btn-sm" id="ssa-btn-skip">Skip</button>
+            <button class="btn btn-secondary btn-sm" id="ssa-btn-next-q">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Finish early -->
+    <div class="finish-early-bar">
+      <button class="btn btn-primary btn-sm" id="ssa-btn-finish-early">
+        View Results
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       RESULTS SECTION
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section id="ssa-results" class="section">
+    <div class="results-wrap">
+
+      <!-- Header -->
+      <div class="res-header">
+        <div class="res-header__left">
+          <h1>Assessment Results</h1>
+          <p>
+            <span id="res-name" style="font-weight:600;color:#e2e8f0;"></span>
+            &nbsp;·&nbsp;
+            <span id="res-role" style="color:#94a3b8;"></span>
+            &nbsp;·&nbsp;
+            <span id="res-date" style="color:#64748b;font-size:13px;"></span>
+          </p>
+        </div>
+        <div class="res-actions">
+          <button class="btn btn-secondary btn-sm" id="res-btn-restart">New Assessment</button>
+          <button class="btn btn-primary btn-sm" id="res-btn-pdf">Export PDF</button>
+        </div>
+      </div>
+
+      <!-- Overall banner -->
+      <div class="res-overall">
+        <div class="res-overall__circle" id="res-overall-circle">
+          <div class="res-overall__circle-inner">
+            <span class="res-overall__pct" id="res-overall-pct">—</span>
+          </div>
+        </div>
+        <div class="res-overall__info">
+          <h2>Overall Performance</h2>
+          <div class="res-overall__level" id="res-overall-level">—</div>
+          <p class="res-overall__desc">Based on your responses across all assessed categories. Skipped questions are excluded from scoring.</p>
+        </div>
+      </div>
+
+      <!-- Category cards -->
+      <div class="res-cat-grid" id="res-cat-cards"></div>
+
+      <!-- Charts -->
+      <div class="res-charts">
+        <div class="chart-card">
+          <div class="chart-card__title">Competency Radar</div>
+          <canvas id="chart-radar" width="340" height="300"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card__title">Category Scores</div>
+          <canvas id="chart-bar" width="340" height="300"></canvas>
+        </div>
+        <div class="chart-card chart-card--full">
+          <div class="chart-card__title">Response Distribution (all answered questions)</div>
+          <canvas id="chart-dist" width="700" height="220"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <span>Soft Skills Assessment Tool</span>
+    <span>Powered by Psychometric Likert Scale · 5-point scoring</span>
+  </footer>
+
+</div>
+
+<!-- Toast -->
+<div id="ssa-toast" class="ssa-toast" role="status" aria-live="polite"></div>
+
+<script src="js/app.js" defer></script>
 </body>
 </html>
