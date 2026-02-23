@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Soft Skills Assessment Tool">
+    <meta name="theme-color" content="#f5f4ed">
+    <title>Soft Skills Assessment</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="ssa-container">
+        <header class="ssa-header">
+            <div class="ssa-header__content">
+                <h1 class="ssa-header__title">Soft Skills Assessment</h1>
+                <p class="ssa-header__subtitle">Evaluate core competencies</p>
+            </div>
+        </header>
+
+        <main class="ssa-main">
+            <div id="ssa-welcome" class="ssa-section ssa-section--active">
+                <div class="ssa-welcome">
+                    <div class="ssa-welcome__card">
+                        <h2 class="ssa-welcome__title">Employee Assessment</h2>
+                        <p class="ssa-welcome__text">This assessment evaluates four key soft skill areas. Each section takes 2-3 minutes.</p>
+                        
+                        <form id="ssa-form-employee" class="ssa-form" novalidate>
+                            <div class="ssa-form__group">
+                                <label for="employee-name" class="ssa-form__label">Employee Name</label>
+                                <input 
+                                    type="text" 
+                                    id="employee-name" 
+                                    class="ssa-form__input" 
+                                    placeholder="Enter full name"
+                                    required
+                                    aria-required="true"
+                                    maxlength="100">
+                                <span class="ssa-form__error" id="error-name"></span>
+                            </div>
+
+                            <div class="ssa-form__group">
+                                <label for="employee-role" class="ssa-form__label">Role</label>
+                                <input 
+                                    type="text" 
+                                    id="employee-role" 
+                                    class="ssa-form__input" 
+                                    placeholder="Enter job role"
+                                    required
+                                    aria-required="true"
+                                    maxlength="100">
+                                <span class="ssa-form__error" id="error-role"></span>
+                            </div>
+
+                            <button type="submit" class="ssa-button ssa-button--primary">Start Assessment</button>
+                        </form>
+
+                        <div class="ssa-welcome__skills">
+                            <h3 class="ssa-welcome__skills-title">Assessment Areas</h3>
+                            <ul class="ssa-skills-list">
+                                <li class="ssa-skills-list__item">
+                                    <span class="ssa-skills-list__icon">●</span>
+                                    <span>Communication</span>
+                                </li>
+                                <li class="ssa-skills-list__item">
+                                    <span class="ssa-skills-list__icon">●</span>
+                                    <span>Leadership</span>
+                                </li>
+                                <li class="ssa-skills-list__item">
+                                    <span class="ssa-skills-list__icon">●</span>
+                                    <span>Confidence</span>
+                                </li>
+                                <li class="ssa-skills-list__item">
+                                    <span class="ssa-skills-list__icon">●</span>
+                                    <span>Teamwork</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ssa-assessment" class="ssa-section">
+                <div class="ssa-assessment">
+                    <div class="ssa-progress">
+                        <div class="ssa-progress__bar">
+                            <div id="ssa-progress-fill" class="ssa-progress__fill"></div>
+                        </div>
+                        <p class="ssa-progress__text"><span id="ssa-progress-current">1</span> / <span id="ssa-progress-total">16</span></p>
+                    </div>
+
+                    <div class="ssa-question">
+                        <h2 id="ssa-question-title" class="ssa-question__title"></h2>
+                        <p id="ssa-question-text" class="ssa-question__text"></p>
+
+                        <div id="ssa-options" class="ssa-options"></div>
+
+                        <div class="ssa-actions">
+                            <button id="ssa-btn-prev" class="ssa-button ssa-button--secondary" aria-label="Previous question">Previous</button>
+                            <button id="ssa-btn-next" class="ssa-button ssa-button--primary" aria-label="Next question">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ssa-results" class="ssa-section">
+                <div class="ssa-results">
+                    <div class="ssa-results__header">
+                        <h2 class="ssa-results__title">Assessment Complete</h2>
+                        <p class="ssa-results__subtitle" id="ssa-employee-name-display"></p>
+                    </div>
+
+                    <div class="ssa-scores">
+                        <div id="ssa-scores-container" class="ssa-scores__grid"></div>
+                    </div>
+
+                    <div class="ssa-results__summary">
+                        <h3 class="ssa-results__summary-title">Overall Score</h3>
+                        <div class="ssa-overall-score">
+                            <div class="ssa-overall-score__circle">
+                                <span id="ssa-overall-percentage" class="ssa-overall-score__percentage">0</span>
+                                <span class="ssa-overall-score__text">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ssa-results__actions">
+                        <button id="ssa-btn-restart" class="ssa-button ssa-button--primary">Start New Assessment</button>
+                        <button id="ssa-btn-export" class="ssa-button ssa-button--secondary">Export Results</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="ssa-footer">
+            <p class="ssa-footer__text">Soft Skills Assessment Tool</p>
+        </footer>
+    </div>
+
+    <div id="ssa-toast" class="ssa-toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="js/app.js" defer></script>
+</body>
+</html>

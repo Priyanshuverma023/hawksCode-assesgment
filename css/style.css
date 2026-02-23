@@ -1,0 +1,590 @@
+:root {
+    --fs-26-60: clamp(26px, 2.5297vw + 11.43px, 60px) !important;
+    --fs-20-42: clamp(20px, 1.636vw + 10.5766px, 42px) !important;
+    --fs-16-32: clamp(16px, 9.15px + 1.19vw, 32px) !important;
+    --fs-12-24: clamp(12px, 6.8576px + 0.8928vw, 24px) !important;
+    --fs-12-20: clamp(12px, 0.595vw + 8.57px, 20px) !important;
+    --fs-12-18: clamp(12px, 0.44vw + 9.43px, 18px) !important;
+    --fs-12-16: clamp(12px, 10.29px + 0.297vw, 16px) !important;
+    --fs-10-16: clamp(10px, 8.525px + 0.3703vw, 16px) !important;
+
+    --primary-bg: #f5f4ed;
+    --secondary-bg: #ffc62f;
+    
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #666;
+    --color-border: #e0e0e0;
+    --color-success: #27ae60;
+    --color-error: #e74c3c;
+    --color-warning: #f39c12;
+    --color-info: #3498db;
+    --color-white: #ffffff;
+    
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    
+    --transition-fast: 150ms ease;
+    --transition-base: 300ms ease;
+    --transition-slow: 500ms ease;
+    
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--primary-bg);
+    color: var(--color-text-primary);
+    line-height: 1.6;
+    font-size: var(--fs-12-16);
+}
+
+.ssa-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.ssa-header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%);
+    color: var(--color-white);
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    text-align: center;
+}
+
+.ssa-header__content {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.ssa-header__title {
+    font-size: var(--fs-20-42);
+    font-weight: 700;
+    margin-bottom: var(--spacing-sm);
+}
+
+.ssa-header__subtitle {
+    font-size: var(--fs-12-18);
+    opacity: 0.9;
+}
+
+.ssa-main {
+    flex: 1;
+    padding: var(--spacing-lg);
+}
+
+.ssa-section {
+    display: none;
+    animation: fadeIn var(--transition-base);
+}
+
+.ssa-section--active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.ssa-welcome {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: var(--spacing-xl) 0;
+}
+
+.ssa-welcome__card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+}
+
+.ssa-welcome__title {
+    font-size: var(--fs-20-42);
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-primary);
+}
+
+.ssa-welcome__text {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xl);
+    font-size: var(--fs-12-18);
+}
+
+.ssa-form {
+    margin-bottom: var(--spacing-xl);
+}
+
+.ssa-form__group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.ssa-form__label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text-primary);
+    font-size: var(--fs-12-16);
+}
+
+.ssa-form__input {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-12-16);
+    transition: border-color var(--transition-fast);
+    font-family: inherit;
+}
+
+.ssa-form__input:focus {
+    outline: none;
+    border-color: var(--secondary-bg);
+    box-shadow: 0 0 0 3px rgba(255, 198, 47, 0.1);
+}
+
+.ssa-form__input.error {
+    border-color: var(--color-error);
+}
+
+.ssa-form__error {
+    display: block;
+    color: var(--color-error);
+    font-size: var(--fs-10-16);
+    margin-top: var(--spacing-xs);
+    min-height: 18px;
+}
+
+.ssa-welcome__skills {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--color-border);
+}
+
+.ssa-welcome__skills-title {
+    font-size: var(--fs-12-18);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+}
+
+.ssa-skills-list {
+    list-style: none;
+}
+
+.ssa-skills-list__item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    font-size: var(--fs-12-16);
+    color: var(--color-text-secondary);
+}
+
+.ssa-skills-list__icon {
+    color: var(--secondary-bg);
+    margin-right: var(--spacing-md);
+    font-size: 12px;
+}
+
+.ssa-assessment {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.ssa-progress {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.ssa-progress__bar {
+    width: 100%;
+    height: 8px;
+    background: var(--color-border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+}
+
+.ssa-progress__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--secondary-bg), #ffdb00);
+    border-radius: 4px;
+    transition: width var(--transition-base);
+    width: 0%;
+}
+
+.ssa-progress__text {
+    text-align: center;
+    font-size: var(--fs-12-18);
+    color: var(--color-text-secondary);
+}
+
+.ssa-question {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+}
+
+.ssa-question__title {
+    font-size: var(--fs-16-32);
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-primary);
+}
+
+.ssa-question__text {
+    font-size: var(--fs-12-18);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xl);
+}
+
+.ssa-options {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.ssa-option {
+    display: flex;
+    align-items: flex-start;
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    background: var(--color-white);
+}
+
+.ssa-option:hover {
+    border-color: var(--secondary-bg);
+    background: rgba(255, 198, 47, 0.05);
+}
+
+.ssa-option--selected {
+    border-color: var(--secondary-bg);
+    background: rgba(255, 198, 47, 0.1);
+}
+
+.ssa-option__input {
+    margin-right: var(--spacing-md);
+    cursor: pointer;
+    margin-top: 2px;
+    accent-color: var(--secondary-bg);
+}
+
+.ssa-option__label {
+    cursor: pointer;
+    flex: 1;
+}
+
+.ssa-option__text {
+    display: block;
+    font-size: var(--fs-12-16);
+    color: var(--color-text-primary);
+    font-weight: 500;
+}
+
+.ssa-option__description {
+    display: block;
+    font-size: var(--fs-10-16);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+.ssa-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: space-between;
+}
+
+.ssa-button {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--fs-12-16);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.ssa-button--primary {
+    background: var(--secondary-bg);
+    color: var(--color-text-primary);
+}
+
+.ssa-button--primary:hover:not(:disabled) {
+    background: #ffb700;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.ssa-button--primary:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.ssa-button--secondary {
+    background: var(--color-border);
+    color: var(--color-text-primary);
+}
+
+.ssa-button--secondary:hover:not(:disabled) {
+    background: #d0d0d0;
+}
+
+.ssa-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ssa-results {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.ssa-results__header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.ssa-results__title {
+    font-size: var(--fs-20-42);
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-text-primary);
+}
+
+.ssa-results__subtitle {
+    font-size: var(--fs-12-18);
+    color: var(--color-text-secondary);
+}
+
+.ssa-scores {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.ssa-scores__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.ssa-score-card {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+}
+
+.ssa-score-card__title {
+    font-size: var(--fs-12-18);
+    font-weight: 600;
+    margin-bottom: var(--spacing-md);
+    color: var(--color-text-primary);
+}
+
+.ssa-score-card__value {
+    font-size: var(--fs-26-60);
+    font-weight: 700;
+    color: var(--secondary-bg);
+}
+
+.ssa-score-card__suffix {
+    font-size: var(--fs-12-18);
+    color: var(--color-text-secondary);
+    margin-left: 4px;
+}
+
+.ssa-results__summary {
+    background: var(--color-white);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.ssa-results__summary-title {
+    font-size: var(--fs-12-18);
+    font-weight: 600;
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-text-primary);
+}
+
+.ssa-overall-score {
+    display: flex;
+    justify-content: center;
+}
+
+.ssa-overall-score__circle {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--secondary-bg), #ffdb00);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.ssa-overall-score__percentage {
+    font-size: var(--fs-26-60);
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+.ssa-overall-score__text {
+    font-size: var(--fs-12-18);
+    color: var(--color-text-primary);
+    margin-left: 4px;
+}
+
+.ssa-results__actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.ssa-footer {
+    background: #f0f0f0;
+    padding: var(--spacing-lg);
+    text-align: center;
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-2xl);
+}
+
+.ssa-footer__text {
+    font-size: var(--fs-10-16);
+    color: var(--color-text-secondary);
+}
+
+.ssa-toast {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    left: var(--spacing-lg);
+    right: var(--spacing-lg);
+    max-width: 500px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--fs-12-16);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-base);
+    box-shadow: var(--shadow-lg);
+    margin-left: auto;
+    margin-right: auto;
+    z-index: 1000;
+}
+
+.ssa-toast.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ssa-toast.success {
+    background: var(--color-success);
+    color: var(--color-white);
+}
+
+.ssa-toast.error {
+    background: var(--color-error);
+    color: var(--color-white);
+}
+
+.ssa-toast.warning {
+    background: var(--color-warning);
+    color: var(--color-text-primary);
+}
+
+.ssa-toast.info {
+    background: var(--color-info);
+    color: var(--color-white);
+}
+
+@media (max-width: 768px) {
+    .ssa-main {
+        padding: var(--spacing-md);
+    }
+
+    .ssa-header {
+        padding: var(--spacing-xl) var(--spacing-md);
+    }
+
+    .ssa-welcome__card,
+    .ssa-question,
+    .ssa-results__summary,
+    .ssa-score-card {
+        padding: var(--spacing-lg);
+    }
+
+    .ssa-scores__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ssa-actions {
+        flex-direction: column;
+    }
+
+    .ssa-actions .ssa-button {
+        width: 100%;
+    }
+
+    .ssa-results__actions {
+        flex-direction: column;
+    }
+
+    .ssa-results__actions .ssa-button {
+        width: 100%;
+    }
+
+    .ssa-overall-score__circle {
+        width: 120px;
+        height: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ssa-header__title {
+        font-size: var(--fs-16-32);
+    }
+
+    .ssa-welcome__title,
+    .ssa-results__title {
+        font-size: var(--fs-16-32);
+    }
+
+    .ssa-question__title {
+        font-size: var(--fs-12-24);
+    }
+
+    .ssa-button {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--fs-10-16);
+    }
+}
