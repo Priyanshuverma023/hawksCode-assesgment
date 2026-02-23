@@ -6,6 +6,8 @@
     <meta name="description" content="Soft Skills Assessment Tool">
     <meta name="theme-color" content="#f5f4ed">
     <title>Soft Skills Assessment</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,7 +24,7 @@
                 <div class="ssa-welcome">
                     <div class="ssa-welcome__card">
                         <h2 class="ssa-welcome__title">Employee Assessment</h2>
-                        <p class="ssa-welcome__text">This assessment evaluates four key soft skill areas. Each section takes 2-3 minutes.</p>
+                        <p class="ssa-welcome__text">This assessment evaluates four key soft skill areas. Each section takes 15-20 minutes.</p>
                         
                         <form id="ssa-form-employee" class="ssa-form" novalidate>
                             <div class="ssa-form__group">
@@ -125,7 +127,7 @@
 
                     <div class="ssa-results__actions">
                         <button id="ssa-btn-restart" class="ssa-button ssa-button--primary">Start New Assessment</button>
-                        <button id="ssa-btn-export" class="ssa-button ssa-button--secondary">Export Results</button>
+                        <button id="ssa-btn-pdf" class="ssa-button ssa-button--secondary">Export Results</button>
                     </div>
                 </div>
             </div>
