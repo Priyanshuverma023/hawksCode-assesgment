@@ -262,6 +262,7 @@ let state = {
   selectedCategories:  [...ALL_CATEGORIES],
   selectedQuestions:   {},
   answers:             {},
+  flaggedQuestions:    new Set(),
   activeCategoryIndex: 0,
   activeQuestionIndex: 0,
   phase:               'welcome',
@@ -269,6 +270,9 @@ let state = {
   timerEnabled:        false,
   questionTime:        0,
   timerInterval:       null,
+  questionTimings:     {}, // Track time per question
+  reviewMode:          false,
+  reviewOnlyFlagged:   false,
 };
 
 // Helpers 
@@ -351,6 +355,141 @@ function getLevel(pct) {
   return               { label:'Critical Gap',  color:'#ef4444' };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// REVIEW MODE FUNCTIONS
+// ────────────────────────────────────────────────────────────────────────────
+
+function toggleFlagQuestion(qid) {
+  if (state.flaggedQuestions.has(qid)) {
+    state.flaggedQuestions.delete(qid);
+  } else {
+    state.flaggedQuestions.add(qid);
+  }
+  renderAssessment();
+  showToast('Question flagged for review', 'info');
+}
+
+function getFlaggedQuestionsCount() {
+  return state.flaggedQuestions.size;
+}
+
+function enterReviewMode() {
+  const flaggedCount = getFlaggedQuestionsCount();
+  const allAnswered = getAllAnsweredCount();
+  
+  if (flaggedCount === 0) {
+    showToast('No questions flagged for review', 'warning');
+    return;
+  }
+  
+  state.reviewMode = true;
+  state.reviewOnlyFlagged = true;
+  state.activeCategoryIndex = 0;
+  state.activeQuestionIndex = findFirstFlaggedQuestion();
+  
+  renderAssessment();
+}
+
+function findFirstFlaggedQuestion() {
+  const qs = activeQuestions();
+  for (let i = 0; i < qs.length; i++) {
+    if (state.flaggedQuestions.has(qs[i].id)) return i;
+  }
+  return 0;
+}
+
+function getNextFlaggedQuestion() {
+  const qs = activeQuestions();
+  for (let i = state.activeQuestionIndex + 1; i < qs.length; i++) {
+    if (state.flaggedQuestions.has(qs[i].id)) return i;
+  }
+  
+  // Move to next category and search
+  if (state.activeCategoryIndex < state.selectedCategories.length - 1) {
+    state.activeCategoryIndex++;
+    state.activeQuestionIndex = -1;
+    return getNextFlaggedQuestion();
+  }
+  
+  return null;
+}
+
+function getPrevFlaggedQuestion() {
+  const qs = activeQuestions();
+  for (let i = state.activeQuestionIndex - 1; i >= 0; i--) {
+    if (state.flaggedQuestions.has(qs[i].id)) return i;
+  }
+  
+  // Move to prev category and search
+  if (state.activeCategoryIndex > 0) {
+    state.activeCategoryIndex--;
+    const prevQs = activeQuestions();
+    state.activeQuestionIndex = prevQs.length;
+    return getPrevFlaggedQuestion();
+  }
+  
+  return null;
+}
+
+function getAllAnsweredCount() {
+  let count = 0;
+  Object.values(state.answers).forEach(v => {
+    if (v !== null && v !== undefined && v !== 'skipped') count++;
+  });
+  return count;
+}
+
+function getNotAnsweredCount() {
+  let count = 0;
+  state.selectedCategories.forEach(cat => {
+    const qs = state.selectedQuestions[cat] || [];
+    qs.forEach(q => {
+      const a = state.answers[q.id];
+      if (a === null || a === undefined) count++;
+    });
+  });
+  return count;
+}
+
+function getSkippedCount() {
+  let count = 0;
+  Object.values(state.answers).forEach(v => {
+    if (v === 'skipped') count++;
+  });
+  return count;
+}
+
+function getTotalQuestionsCount() {
+  let total = 0;
+  state.selectedCategories.forEach(cat => {
+    const qs = state.selectedQuestions[cat] || [];
+    total += qs.length;
+  });
+  return total;
+}
+
+function updateCompletionStatus() {
+  const statusEl = document.getElementById('completion-status');
+  if (!statusEl) return;
+  
+  const totalQuestions = getTotalQuestionsCount();
+  const answeredCount = getAllAnsweredCount();
+  const completionPercentage = Math.round((answeredCount / totalQuestions) * 100);
+  const neededCount = Math.ceil(totalQuestions * 0.5);
+  
+  if (completionPercentage >= 50) {
+    statusEl.textContent = `✓ ${completionPercentage}% Complete - Ready to submit`;
+    statusEl.style.background = 'rgba(74, 222, 128, 0.12)';
+    statusEl.style.color = '#166534';
+    statusEl.style.borderColor = '#86efac';
+  } else {
+    statusEl.textContent = `Need ${neededCount - answeredCount} more answers (${completionPercentage}% of 50%)`;
+    statusEl.style.background = 'rgba(251, 191, 36, 0.12)';
+    statusEl.style.color = '#78350f';
+    statusEl.style.borderColor = '#fbbf24';
+  }
+}
+
 // Timer Functions
 function startTimer() {
   if (!state.timerEnabled) return;
@@ -367,6 +506,12 @@ function stopTimer() {
   if (state.timerInterval) {
     clearInterval(state.timerInterval);
     state.timerInterval = null;
+  }
+  
+  // Store timing for current question
+  const q = activeQuestion();
+  if (q && state.timerEnabled) {
+    state.questionTimings[q.id] = state.questionTime;
   }
 }
 
@@ -398,6 +543,7 @@ function showToast(msg, type = 'info') {
 function renderWelcome() {
   document.getElementById('ssa-welcome').classList.add('active');
   document.getElementById('ssa-assessment').classList.remove('active');
+  document.getElementById('ssa-review').classList.remove('active');
   document.getElementById('ssa-results').classList.remove('active');
   renderCategorySelector();
 }
@@ -467,6 +613,7 @@ function updateStartButton() {
 function renderAssessment() {
   document.getElementById('ssa-welcome').classList.remove('active');
   document.getElementById('ssa-assessment').classList.add('active');
+  document.getElementById('ssa-review').classList.remove('active');
   document.getElementById('ssa-results').classList.remove('active');
   renderCategoryTabs();
   renderCategoryProgress();
@@ -503,8 +650,10 @@ function renderCategoryProgress() {
   qs.forEach((q, i) => {
     const dot = document.createElement('button');
     const ans = state.answers[q.id];
+    const isFlagged = state.flaggedQuestions.has(q.id);
     let cls   = 'q-dot';
     if (i === state.activeQuestionIndex) cls += ' active';
+    else if (isFlagged) cls += ' flagged';
     else if (ans === 'skipped') cls += ' skipped';
     else if (ans !== null && ans !== undefined) cls += ' answered';
     dot.className = cls;
@@ -522,11 +671,24 @@ function renderQuestionCard() {
   const cat   = activeCategory();
   const qNum  = state.activeQuestionIndex + 1;
   const total = activeQuestions().length;
+  const isFlagged = state.flaggedQuestions.has(q.id);
 
   const typeLabel = { likert:'Agree/Disagree', freq:'Frequency', choice:'Scenario' }[q.type] || '';
   document.getElementById('ssa-cat-label').textContent = `${cat}  ·  ${typeLabel}`;
   document.getElementById('ssa-q-num').textContent     = `Question ${qNum} of ${total}`;
   document.getElementById('ssa-q-text').textContent    = q.text;
+  
+  // Update flag button
+  const flagBtn = document.getElementById('ssa-btn-flag');
+  if (flagBtn) {
+    flagBtn.classList.toggle('flagged', isFlagged);
+    flagBtn.innerHTML = isFlagged 
+      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg> Flagged'
+      : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg> Flag';
+  }
+  
+  // Update completion status
+  updateCompletionStatus();
 
   const container = document.getElementById('ssa-likert');
   container.innerHTML = '';
@@ -539,15 +701,26 @@ function renderQuestionCard() {
   }
 
   // Prev / Next button states
-  document.getElementById('ssa-btn-prev-q').disabled =
-    (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
+  if (state.reviewMode && state.reviewOnlyFlagged) {
+    const prevBtn = document.getElementById('ssa-btn-prev-q');
+    prevBtn.disabled = getPrevFlaggedQuestion() === null;
+    
+    const isLastFlagged = getNextFlaggedQuestion() === null;
+    const nextBtn = document.getElementById('ssa-btn-next-q');
+    nextBtn.innerHTML = isLastFlagged
+      ? 'Back to Summary'
+      : 'Next Flagged <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  } else {
+    document.getElementById('ssa-btn-prev-q').disabled =
+      (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
 
-  const isLastQ   = state.activeQuestionIndex === total - 1;
-  const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-  const nextBtn   = document.getElementById('ssa-btn-next-q');
-  nextBtn.innerHTML = (isLastQ && isLastCat)
-    ? 'Finish'
-    : 'Next <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    const isLastQ   = state.activeQuestionIndex === total - 1;
+    const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
+    const nextBtn   = document.getElementById('ssa-btn-next-q');
+    nextBtn.innerHTML = (isLastQ && isLastCat)
+      ? 'Review & Submit'
+      : 'Next <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  }
 }
 
 function renderScaleOptions(q, scale, container) {
@@ -564,9 +737,9 @@ function renderScaleOptions(q, scale, container) {
       if (state.answerLocked) return;
       state.answerLocked = true;
       state.answers[q.id] = opt.value;
-          document.querySelectorAll('.likert-btn').forEach(b => {
+      document.querySelectorAll('.likert-btn').forEach(b => {
         b.disabled = true;
-             b.classList.toggle('selected', parseInt(b.dataset.value) === opt.value);
+        b.classList.toggle('selected', parseInt(b.dataset.value) === opt.value);
       });
       renderCategoryProgress();
       renderCategoryTabs();
@@ -609,28 +782,48 @@ function renderChoiceOptions(q, container) {
 function advanceQuestion() {
   stopTimer();
   const qs = activeQuestions();
-  if (state.activeQuestionIndex < qs.length - 1) {
-    state.activeQuestionIndex++;
-    renderAssessment();
-  } else if (state.activeCategoryIndex < state.selectedCategories.length - 1) {
-    state.activeCategoryIndex++;
-    state.activeQuestionIndex = 0;
-    renderAssessment();
-    showToast(`Moving to ${activeCategory()}`, 'info');
+  
+  if (state.reviewMode && state.reviewOnlyFlagged) {
+    const nextIdx = getNextFlaggedQuestion();
+    if (nextIdx !== null) {
+      state.activeQuestionIndex = nextIdx;
+      renderAssessment();
+    } else {
+      renderReviewSummary();
+    }
   } else {
-    finishAssessment();
+    if (state.activeQuestionIndex < qs.length - 1) {
+      state.activeQuestionIndex++;
+      renderAssessment();
+    } else if (state.activeCategoryIndex < state.selectedCategories.length - 1) {
+      state.activeCategoryIndex++;
+      state.activeQuestionIndex = 0;
+      renderAssessment();
+      showToast(`Moving to ${activeCategory()}`, 'info');
+    } else {
+      renderReviewSummary();
+    }
   }
 }
 
 function prevQuestion() {
   stopTimer();
-  if (state.activeQuestionIndex > 0) {
-    state.activeQuestionIndex--;
-  } else if (state.activeCategoryIndex > 0) {
-    state.activeCategoryIndex--;
-    state.activeQuestionIndex = activeQuestions().length - 1;
+  
+  if (state.reviewMode && state.reviewOnlyFlagged) {
+    const prevIdx = getPrevFlaggedQuestion();
+    if (prevIdx !== null) {
+      state.activeQuestionIndex = prevIdx;
+      renderAssessment();
+    }
+  } else {
+    if (state.activeQuestionIndex > 0) {
+      state.activeQuestionIndex--;
+    } else if (state.activeCategoryIndex > 0) {
+      state.activeCategoryIndex--;
+      state.activeQuestionIndex = activeQuestions().length - 1;
+    }
+    renderAssessment();
   }
-  renderAssessment();
 }
 
 function skipQuestion() {
@@ -643,19 +836,85 @@ function skipQuestion() {
 }
 
 function nextQuestion() {
-  const isLastQ   = state.activeQuestionIndex === activeQuestions().length - 1;
+  const qs = activeQuestions();
+  const isLastQ   = state.activeQuestionIndex === qs.length - 1;
   const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-  if (isLastQ && isLastCat) {
-    const anyAnswered = Object.values(state.answers).some(v => v !== null && v !== undefined && v !== 'skipped');
-    if (!anyAnswered) { showToast('Please answer at least one question before viewing results.', 'warning'); return; }
-    finishAssessment();
+  
+  if (state.reviewMode && state.reviewOnlyFlagged) {
+    advanceQuestion();
+  } else if (isLastQ && isLastCat) {
+    // Check 50% completion requirement
+    const totalQuestions = getTotalQuestionsCount();
+    const answeredCount = getAllAnsweredCount();
+    const completionPercentage = (answeredCount / totalQuestions) * 100;
+    
+    if (completionPercentage < 50) {
+      showToast(`Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}). You've answered ${answeredCount} so far.`, 'warning');
+      return;
+    }
+    
+    renderReviewSummary();
   } else {
     advanceQuestion();
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// REVIEW SUMMARY
+// ────────────────────────────────────────────────────────────────────────────
+
+function renderReviewSummary() {
+  stopTimer();
+  document.getElementById('ssa-welcome').classList.remove('active');
+  document.getElementById('ssa-assessment').classList.remove('active');
+  document.getElementById('ssa-review').classList.add('active');
+  document.getElementById('ssa-results').classList.remove('active');
+  
+  state.reviewMode = false;
+  state.reviewOnlyFlagged = false;
+  
+  const answeredCount = getAllAnsweredCount();
+  const skippedCount = getSkippedCount();
+  const notAnsweredCount = getNotAnsweredCount();
+  const flaggedCount = getFlaggedQuestionsCount();
+  
+  document.getElementById('rev-answered-count').textContent = answeredCount;
+  document.getElementById('rev-skipped-count').textContent = skippedCount;
+  document.getElementById('rev-notanswered-count').textContent = notAnsweredCount;
+  document.getElementById('rev-flagged-count').textContent = flaggedCount;
+  
+  // Build review cards
+  const container = document.getElementById('rev-summary-cards');
+  container.innerHTML = '';
+  
+  state.selectedCategories.forEach(cat => {
+    const stats = categoryStats(cat);
+    const card = document.createElement('div');
+    card.className = 'rev-cat-card';
+    card.innerHTML = `
+      <div class="rev-cat-card__name">${cat}</div>
+      <div class="rev-cat-card__status">
+        <span class="rev-badge rev-badge--answered">${stats.answered} Answered</span>
+        <span class="rev-badge rev-badge--skipped">${stats.skipped} Skipped</span>
+        <span class="rev-badge rev-badge--unanswered">${stats.total - stats.answered - stats.skipped} Unanswered</span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
 //Finish 
 function finishAssessment() {
+  // Double-check 50% completion before finalizing
+  const totalQuestions = getTotalQuestionsCount();
+  const answeredCount = getAllAnsweredCount();
+  const completionPercentage = (answeredCount / totalQuestions) * 100;
+  
+  if (completionPercentage < 50) {
+    showToast(`Cannot submit: Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}).`, 'error');
+    return;
+  }
+  
   stopTimer();
   saveToStorage();
   renderResults();
@@ -665,6 +924,7 @@ function finishAssessment() {
 function renderResults() {
   document.getElementById('ssa-welcome').classList.remove('active');
   document.getElementById('ssa-assessment').classList.remove('active');
+  document.getElementById('ssa-review').classList.remove('active');
   document.getElementById('ssa-results').classList.add('active');
 
   const stats   = allCategoryStats();
@@ -964,7 +1224,7 @@ async function generatePDF() {
       Communication: {
         Exceptional:  ['Mentor a colleague on communication best practices', 'Lead workshops on difficult conversations or stakeholder management', 'Explore executive communication or public speaking programs'],
         Proficient:   ['Practice structured feedback frameworks (SBI, STAR)', 'Take on a project requiring cross-functional stakeholder management', 'Read: "Crucial Conversations" by Patterson et al.'],
-        Developing:   ['Join a public speaking group (e.g. Toastmasters)', 'Practice active listening daily — summarize before responding', 'Weekly journaling: reflect on one communication situation each week'],
+        Developing:   ['Join a public speaking group (e.g Toastmasters)', 'Practice active listening daily — summarize before responding', 'Weekly journaling: reflect on one communication situation each week'],
         'Needs Focus': ['Enrol in a foundational business communication course', 'Request weekly feedback from your manager on communication clarity', 'Role-play difficult conversations with a trusted colleague or coach'],
         'Critical Gap': ['Seek immediate coaching or mentoring on communication fundamentals', 'Start with written communication — practice clear, concise emails daily', 'Ask manager for explicit communication goals in your next review'],
       },
@@ -1158,7 +1418,7 @@ async function generatePDF() {
       doc.setFillColor(240, 255, 245);
       doc.roundedRect(ML, y, (CW / 2) - 3, 5 + doc.splitTextToSize(analysis.strength, (CW / 2) - 10).length * 5, 2, 2, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(22, 163, 74);
-     doc.text('+ STRENGTHS', ML + 3, y + 4);
+      doc.text('+ STRENGTHS', ML + 3, y + 4);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(40, 80, 40);
       const strLines = doc.splitTextToSize(analysis.strength, (CW / 2) - 10);
       doc.text(strLines, ML + 3, y + 10);
@@ -1243,7 +1503,7 @@ async function generatePDF() {
     });
 
     // ════════════════════════════════════════════════════════════════════
-    // PAGE 5 — Detailed Question Responses
+    // PAGE 5 — Detailed Question Responses with Timing
     // ════════════════════════════════════════════════════════════════════
     doc.addPage(); y = 15;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
@@ -1274,7 +1534,9 @@ async function generatePDF() {
         const lines = doc.splitTextToSize(`Q${qi + 1}. ${q.text}`, PW - 50);
         doc.text(lines, 20, y); y += lines.length * 4.8;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b); doc.text(ansLabel, 25, y); y += 8;
+        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b); 
+        const timingStr = state.timerEnabled && state.questionTimings[q.id] ? ` (${formatTime(state.questionTimings[q.id])})` : '';
+        doc.text(ansLabel + timingStr, 25, y); y += 8;
       });
       y += 4;
     });
@@ -1285,7 +1547,26 @@ async function generatePDF() {
     doc.text('Response Distribution', 20, y); y += 8;
     try { const img = document.getElementById('chart-dist').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, PW - 30, 70); } catch (e) { }
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
- 
+    
+    // ── Timing Summary if timer enabled
+    if (state.timerEnabled) {
+      doc.addPage(); y = 15;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
+      doc.text('Assessment Timing Summary', 20, y); y += 10;
+      
+      let totalTime = 0;
+      Object.values(state.questionTimings).forEach(t => { totalTime += t; });
+      
+      doc.setFillColor(255, 249, 240);
+      doc.roundedRect(18, y, PW - 36, 14, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(26, 26, 26);
+      doc.text(`Total Assessment Time: ${formatTime(totalTime)}`, 22, y + 9);
+      y += 18;
+      
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100);
+      doc.text('Time per question helps identify areas where you spent more deliberation. No time pressure — answer at your own pace.', ML, y);
+      y += 12;
+    }
 
     // ── Page numbers
     const pageCount = doc.internal.getNumberOfPages();
@@ -1319,6 +1600,7 @@ function saveToStorage() {
       id: Date.now(), employee: state.employeeData,
       categories: state.selectedCategories, timestamp: new Date().toISOString(),
       answers: state.answers, stats: allCategoryStats(), overall: overallScore(),
+      flagged: Array.from(state.flaggedQuestions), timings: state.questionTimings,
     });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   } catch(_){}
@@ -1342,6 +1624,8 @@ function init() {
     state.employeeData      = { name, role };
     state.selectedQuestions = pickQuestions();
     state.answers           = {};
+    state.flaggedQuestions  = new Set();
+    state.questionTimings   = {};
     state.activeCategoryIndex = 0;
     state.activeQuestionIndex = 0;
     state.answerLocked        = false;
@@ -1356,27 +1640,49 @@ function init() {
   document.getElementById('ssa-btn-prev-q').addEventListener('click', prevQuestion);
   document.getElementById('ssa-btn-next-q').addEventListener('click', nextQuestion);
   document.getElementById('ssa-btn-skip').addEventListener('click', skipQuestion);
+  document.getElementById('ssa-btn-flag').addEventListener('click', () => {
+    const q = activeQuestion();
+    toggleFlagQuestion(q.id);
+  });
   document.getElementById('ssa-btn-finish-early').addEventListener('click', () => {
-    const anyAnswered = Object.values(state.answers).some(v => v !== null && v !== undefined && v !== 'skipped');
-    if (!anyAnswered) { showToast('Please answer at least one question before viewing results.','warning'); return; }
-    finishAssessment();
+    const totalQuestions = getTotalQuestionsCount();
+    const answeredCount = getAllAnsweredCount();
+    const completionPercentage = (answeredCount / totalQuestions) * 100;
+    
+    if (completionPercentage < 50) {
+      showToast(`Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}). You've answered ${answeredCount} so far.`, 'warning');
+      return;
+    }
+    
+    renderReviewSummary();
   });
   document.getElementById('res-btn-pdf').addEventListener('click', generatePDF);
   document.getElementById('res-btn-restart').addEventListener('click', () => {
     state = {
       employeeData:null, selectedCategories:[...ALL_CATEGORIES],
       selectedQuestions:{}, answers:{},
-      activeCategoryIndex:0, activeQuestionIndex:0,
+      flaggedQuestions: new Set(), activeCategoryIndex:0, activeQuestionIndex:0,
       phase:'welcome', answerLocked:false,
       timerEnabled:false, questionTime:0, timerInterval:null,
+      questionTimings: {}, reviewMode: false, reviewOnlyFlagged: false,
     };
     document.getElementById('ssa-form').reset();
     document.getElementById('err-name').textContent='';
     document.getElementById('err-role').textContent='';
     document.getElementById('ssa-welcome').classList.add('active');
     document.getElementById('ssa-assessment').classList.remove('active');
+    document.getElementById('ssa-review').classList.remove('active');
     document.getElementById('ssa-results').classList.remove('active');
     renderCategorySelector();
+  });
+  
+  // Review mode button
+  document.getElementById('rev-btn-review-flagged').addEventListener('click', enterReviewMode);
+  document.getElementById('rev-btn-submit').addEventListener('click', finishAssessment);
+  document.getElementById('rev-btn-back').addEventListener('click', () => {
+    state.activeCategoryIndex = 0;
+    state.activeQuestionIndex = 0;
+    renderAssessment();
   });
 
   document.getElementById('ssa-welcome').classList.add('active');

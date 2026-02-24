@@ -99,7 +99,7 @@
               <div class="how-it-works-body">
                 Rate each statement using a 5-point scale from <em>Strongly Agree</em> to
                 <em>Strongly Disagree</em>. Questions mix workplace scenarios, reflective
-                statements, and frequency-based items. You can skip any question.
+                statements, and frequency-based items. You can skip any question, flag for review, and change answers before submitting.
               </div>
             </div>
 
@@ -116,9 +116,9 @@
     </div>
   </section>
 
-  <!-- ════════════════════════════════════════════════════════════════════════
+  <!--
        ASSESSMENT SECTION
-  ════════════════════════════════════════════════════════════════════════════ -->
+  -->
   <section id="ssa-assessment" class="section">
 
     <!-- Category tab bar — scrollable on mobile -->
@@ -146,6 +146,7 @@
           <button class="btn btn-ghost btn-sm" id="ssa-btn-prev-q"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
             Back</button>
           <div class="q-actions__right">
+            <button class="btn btn-ghost btn-sm" id="ssa-btn-flag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg> Flag</button>
             <button class="btn btn-ghost btn-sm" id="ssa-btn-skip">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
               Skip</button>
@@ -158,11 +159,77 @@
 
     <!-- Finish early -->
     <div class="finish-early-bar">
+      <div class="completion-requirement">
+        <span class="completion-info" id="completion-status">Answer 50%+ to submit results</span>
+      </div>
       <button class="btn btn-primary btn-sm" id="ssa-btn-finish-early">
         View Results
       </button>
     </div>
 
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       REVIEW SUMMARY SECTION
+  ════════════════════════════════════════════════════════════════════════════ -->
+  <section id="ssa-review" class="section">
+    <div class="review-outer">
+      <div class="review-header">
+        <h2>Review Your Assessment</h2>
+        <p>Review your answers before final submission. You can change answers and flag questions for later review.</p>
+      </div>
+
+      <div class="review-stats-grid">
+        <div class="review-stat-card">
+          <div class="review-stat-badge" style="background: #86efac; color: #166534;">✓</div>
+          <div class="review-stat-info">
+            <div class="review-stat-label">Answered</div>
+            <div class="review-stat-value" id="rev-answered-count">0</div>
+          </div>
+        </div>
+        <div class="review-stat-card">
+          <div class="review-stat-badge" style="background: #fbbf24; color: #78350f;">⊘</div>
+          <div class="review-stat-info">
+            <div class="review-stat-label">Skipped</div>
+            <div class="review-stat-value" id="rev-skipped-count">0</div>
+          </div>
+        </div>
+        <div class="review-stat-card">
+          <div class="review-stat-badge" style="background: #fb923c; color: #7c2d12;">!</div>
+          <div class="review-stat-info">
+            <div class="review-stat-label">Not Answered</div>
+            <div class="review-stat-value" id="rev-notanswered-count">0</div>
+          </div>
+        </div>
+        <div class="review-stat-card">
+          <div class="review-stat-badge" style="background: #60a5fa; color: #1e3a8a;">🚩</div>
+          <div class="review-stat-info">
+            <div class="review-stat-label">Flagged for Review</div>
+            <div class="review-stat-value" id="rev-flagged-count">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-summary-section">
+        <h3>Category Breakdown</h3>
+        <div id="rev-summary-cards" class="review-cat-grid"></div>
+      </div>
+
+      <div class="review-actions">
+        <button class="btn btn-ghost btn-sm" id="rev-btn-back">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+          Back to Assessment
+        </button>
+        <button class="btn btn-secondary btn-sm" id="rev-btn-review-flagged">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg>
+          Review Flagged
+        </button>
+        <button class="btn btn-primary btn-sm" id="rev-btn-submit">
+          Submit & View Results
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════════════════════
