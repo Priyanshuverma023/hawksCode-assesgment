@@ -417,7 +417,7 @@ function renderCategorySelector() {
       <span class="cat-select-name">${cat}</span>
       <span class="cat-select-check">${isSelected ? '✓' : ''}</span>
     `;
-    btn.style.setProperty('--cat-color', meta.color);
+      btn.style.setProperty('--cat-color', meta.color);
     btn.addEventListener('click', () => toggleCategory(cat));
     grid.appendChild(btn);
   });
@@ -564,9 +564,9 @@ function renderScaleOptions(q, scale, container) {
       if (state.answerLocked) return;
       state.answerLocked = true;
       state.answers[q.id] = opt.value;
-      document.querySelectorAll('.likert-btn').forEach(b => {
+          document.querySelectorAll('.likert-btn').forEach(b => {
         b.disabled = true;
-        b.classList.toggle('selected', parseInt(b.dataset.value) === opt.value);
+             b.classList.toggle('selected', parseInt(b.dataset.value) === opt.value);
       });
       renderCategoryProgress();
       renderCategoryTabs();
@@ -645,8 +645,13 @@ function skipQuestion() {
 function nextQuestion() {
   const isLastQ   = state.activeQuestionIndex === activeQuestions().length - 1;
   const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-  if (isLastQ && isLastCat) finishAssessment();
-  else advanceQuestion();
+  if (isLastQ && isLastCat) {
+    const anyAnswered = Object.values(state.answers).some(v => v !== null && v !== undefined && v !== 'skipped');
+    if (!anyAnswered) { showToast('Please answer at least one question before viewing results.', 'warning'); return; }
+    finishAssessment();
+  } else {
+    advanceQuestion();
+  }
 }
 
 //Finish 
@@ -881,104 +886,419 @@ async function generatePDF() {
     const PH      = doc.internal.pageSize.getHeight();
     const stats   = allCategoryStats();
     const overall = overallScore();
+    const ML = 20, MR = 20, CW = PW - ML - MR;
     let y = 0;
 
-    doc.setFillColor(26,26,26); doc.rect(0,0,PW,50,'F');
-    doc.setFillColor(255,198,47); doc.rect(0,48,PW,2,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(22);
-    doc.setTextColor(255,255,255);
-    doc.text('Soft Skills Assessment', PW/2, 18, { align:'center' });
-    doc.setFont('helvetica','normal'); doc.setFontSize(11);
-    doc.setTextColor(180,180,180);
-    doc.text('Psychometric Competency Report', PW/2, 30, { align:'center' });
-    doc.setFontSize(9); doc.setTextColor(255,198,47);
-    doc.text(`Categories: ${state.selectedCategories.join(' · ')}`, PW/2, 40, { align:'center' });
+    // ── Helper functions ──────────────────────────────────────────────
+    function checkPage(needed = 20) {
+      if (y + needed > PH - 15) { doc.addPage(); y = 18; }
+    }
+
+    function sectionTitle(title, pageCheck = 24) {
+      checkPage(pageCheck);
+      doc.setFillColor(26, 26, 26);
+      doc.roundedRect(ML, y, CW, 10, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(255, 198, 47);
+      doc.text(title, ML + 5, y + 7);
+      y += 16;
+    }
+
+    function drawProgressBar(x, barY, w, h, pct, color) {
+      doc.setFillColor(220, 220, 220);
+      doc.roundedRect(x, barY, w, h, 1, 1, 'F');
+      if (pct > 0) {
+        const rgb = hexToRgb(color);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.roundedRect(x, barY, w * pct / 100, h, 1, 1, 'F');
+      }
+    }
+
+    function wrappedText(text, x, textY, maxW, lineH = 5.5) {
+      const lines = doc.splitTextToSize(text, maxW);
+      doc.text(lines, x, textY);
+      return textY + lines.length * lineH;
+    }
+
+    // ── Feedback & Analysis Engine ────────────────────────────────────
+    const FEEDBACK = {
+      Communication: {
+        Exceptional:  { fb: 'You demonstrate outstanding communication skills. You adapt effortlessly across formats, handle difficult conversations with confidence, and ensure clarity and alignment in all interactions.', strength: 'Adaptive communication, clarity under pressure, active listening', weakness: 'May benefit from further developing advanced negotiation or cross-cultural communication nuances.' },
+        Proficient:   { fb: 'You communicate effectively in most situations. You handle feedback well and keep stakeholders informed. Focus on refining how you handle high-stakes or ambiguous communication moments.', strength: 'Clear messaging, good feedback reception, solid written communication', weakness: 'Occasional hesitation in confrontational or emotionally charged conversations.' },
+        Developing:   { fb: 'You have a foundational communication style but tend to struggle in complex or high-pressure situations. Building confidence in difficult conversations will significantly elevate your effectiveness.', strength: 'Basic clarity, willingness to communicate', weakness: 'Needs improvement in active listening, clarity under pressure, and proactive communication.' },
+        'Needs Focus': { fb: 'Communication gaps are creating friction in your work. Investing in structured communication training — especially for feedback delivery and conflict resolution — is essential.', strength: 'Awareness of communication importance', weakness: 'Significant gaps in clarity, active listening, and handling difficult conversations.' },
+        'Critical Gap': { fb: 'Critical communication deficits are likely impacting your team and stakeholders. Immediate focus on foundational communication skills is strongly recommended.', strength: 'Room for significant growth identified', weakness: 'Core communication fundamentals need urgent attention across all contexts.' },
+      },
+      Leadership: {
+        Exceptional:  { fb: 'You exemplify strong, empathetic leadership. You develop others, make decisive calls, and create psychological safety — your team likely performs above average because of your influence.', strength: 'Decision-making, team development, inclusive leadership, accountability', weakness: 'At this level, focus on strategic influence and executive presence for even greater impact.' },
+        Proficient:   { fb: 'You lead effectively and take ownership. You support your team and make good decisions under pressure. Continue building your ability to develop junior talent and lead through ambiguity.', strength: 'Decisiveness, accountability, team support', weakness: 'Delegation and developing others could be strengthened further.' },
+        Developing:   { fb: 'You show leadership potential but still default to individual contribution over team enablement. Focus on developing others and making decisions even with incomplete information.', strength: 'Takes initiative, some awareness of team dynamics', weakness: 'Delegation, developing junior staff, and leading through uncertainty need attention.' },
+        'Needs Focus': { fb: 'Leadership behaviours are inconsistent. Addressing conflict, holding others accountable, and making timely decisions are areas requiring significant development.', strength: 'Willing to take on responsibility', weakness: 'Conflict resolution, accountability, and team enablement are critical gaps.' },
+        'Critical Gap': { fb: 'Leadership fundamentals need immediate attention. Without improvement, team performance and morale may be at risk. Structured coaching or mentoring is strongly recommended.', strength: 'Opportunity for transformational growth', weakness: 'Core leadership behaviours across all dimensions require urgent development.' },
+      },
+      Confidence: {
+        Exceptional:  { fb: 'You operate with high self-assurance and resilience. You take on stretch challenges, stand by your views under pressure, and recover quickly from setbacks — a powerful professional asset.', strength: 'Resilience, self-advocacy, presence under pressure, growth mindset', weakness: 'Ensure high confidence doesn\'t tip into dismissing others\' perspectives.' },
+        Proficient:   { fb: 'You carry yourself with solid confidence in most situations. You speak up and take on challenges. Work on maintaining composure and assertiveness in the highest-stakes moments.', strength: 'Self-advocacy, willingness to volunteer, handling criticism constructively', weakness: 'May occasionally hesitate in very high-visibility or confrontational situations.' },
+        Developing:   { fb: 'Your confidence is situational — strong in familiar territory but shaky under scrutiny or in senior settings. Building a track record of small wins will compound into greater self-assurance.', strength: 'Self-awareness, some assertiveness in familiar contexts', weakness: 'Needs development in speaking up in senior rooms, recovering from public mistakes, and self-promotion.' },
+        'Needs Focus': { fb: 'Low confidence is limiting your professional impact. You may be holding back valuable contributions. Working with a coach or mentor on visibility and self-advocacy would be highly beneficial.', strength: 'Humility and self-awareness', weakness: 'Assertiveness, visibility, recovering from setbacks, and self-advocacy all need significant work.' },
+        'Critical Gap': { fb: 'Confidence deficits are significantly holding back your growth. Immediate and structured work on self-belief, assertiveness, and resilience is strongly recommended.', strength: 'Genuine opportunity for transformational self-development', weakness: 'Fundamental confidence behaviours are absent across nearly all scenarios.' },
+      },
+      Teamwork: {
+        Exceptional:  { fb: 'You are an exceptional team player. You create safety, share credit, address issues proactively, and elevate everyone around you. Your team is better because you\'re in it.', strength: 'Proactive support, credit sharing, conflict resolution, psychological safety creation', weakness: 'At this level, focus on cross-functional collaboration and influencing team culture at a broader scale.' },
+        Proficient:   { fb: 'You collaborate well and contribute meaningfully to team success. You support teammates and handle disagreements constructively. Focus on being even more proactive in surfacing issues early.', strength: 'Reliability, credit sharing, supporting teammates, constructive disagreement', weakness: 'Could be more proactive in flagging risks and developing deeper cross-functional relationships.' },
+        Developing:   { fb: 'You contribute to your team but sometimes default to independent work over collaborative effort. Leaning into shared ownership and proactive communication will improve team outcomes significantly.', strength: 'Contributes when asked, basic reliability', weakness: 'Proactive help-offering, surfacing team issues early, and sharing credit need development.' },
+        'Needs Focus': { fb: 'Teamwork behaviours are inconsistent and may be creating friction. Focus on reliability, proactive communication, and supporting teammates before focusing on individual output.', strength: 'Awareness of team dynamics', weakness: 'Reliability, proactive communication, conflict handling, and recognizing others are critical gaps.' },
+        'Critical Gap': { fb: 'Fundamental teamwork behaviours are absent. This is likely creating significant friction and trust issues within your team. Immediate coaching on collaboration fundamentals is recommended.', strength: 'Significant potential for growth in team contribution', weakness: 'Core collaboration, reliability, communication, and support behaviours all require urgent attention.' },
+      },
+    };
+
+    function getAnalysis(cat, pct) {
+      const level = getLevel(pct);
+      const data  = FEEDBACK[cat]?.[level.label];
+      if (!data) return { fb: 'No feedback available.', strength: '—', weakness: '—' };
+      return data;
+    }
+
+    const IMPROVEMENT_PLANS = {
+      Communication: {
+        Exceptional:  ['Mentor a colleague on communication best practices', 'Lead workshops on difficult conversations or stakeholder management', 'Explore executive communication or public speaking programs'],
+        Proficient:   ['Practice structured feedback frameworks (SBI, STAR)', 'Take on a project requiring cross-functional stakeholder management', 'Read: "Crucial Conversations" by Patterson et al.'],
+        Developing:   ['Join a public speaking group (e.g. Toastmasters)', 'Practice active listening daily — summarize before responding', 'Weekly journaling: reflect on one communication situation each week'],
+        'Needs Focus': ['Enrol in a foundational business communication course', 'Request weekly feedback from your manager on communication clarity', 'Role-play difficult conversations with a trusted colleague or coach'],
+        'Critical Gap': ['Seek immediate coaching or mentoring on communication fundamentals', 'Start with written communication — practice clear, concise emails daily', 'Ask manager for explicit communication goals in your next review'],
+      },
+      Leadership: {
+        Exceptional:  ['Take on a cross-organisational leadership initiative', 'Sponsor a junior colleague\'s development formally', 'Explore executive leadership programs or peer CEO groups'],
+        Proficient:   ['Delegate one meaningful project per month you\'d normally keep', 'Schedule monthly development conversations with each team member', 'Read: "The Manager\'s Path" by Camille Fournier'],
+        Developing:   ['Practice making decisions with 70% information — then review outcomes', 'Volunteer to lead a small cross-functional project', 'Find a leadership mentor inside or outside your organisation'],
+        'Needs Focus': ['Enrol in a structured leadership development programme', 'Work with a coach specifically on conflict resolution and accountability', 'Identify one leadership behaviour to improve each month'],
+        'Critical Gap': ['Seek immediate leadership coaching or mentoring', 'Shadow a strong leader in your organisation for 30 days', 'Set specific, measurable leadership goals with your manager this week'],
+      },
+      Confidence: {
+        Exceptional:  ['Deliberately sponsor others\' visibility in senior settings', 'Take on a high-stakes external speaking opportunity', 'Explore how your confidence can create safety for others around you'],
+        Proficient:   ['Volunteer for the next high-visibility project before being asked', 'Practice reframing setbacks — write one learning from each challenge', 'Take a negotiation skills workshop to strengthen assertiveness'],
+        Developing:   ['Set a goal to share your opinion in every meeting this week', 'Track small wins daily — build evidence of your own competence', 'Read: "The Confidence Code" by Katty Kay & Claire Shipman'],
+        'Needs Focus': ['Work with a coach on self-advocacy and visibility strategies', 'Practice a 2-minute "professional highlights" pitch about your work', 'Identify one situation per week where you held back — then act differently'],
+        'Critical Gap': ['Begin confidence-focused coaching or therapy immediately', 'Start with low-stakes visibility: contribute one idea per team meeting', 'Journal daily: three things you did well — build a positive evidence base'],
+      },
+      Teamwork: {
+        Exceptional:  ['Champion a team culture initiative across your wider organisation', 'Formally mentor someone on collaboration and team dynamics', 'Explore team facilitation or organisational psychology reading'],
+        Proficient:   ['Proactively check in on a blocked teammate before they ask for help', 'Initiate a team retrospective or process improvement session', 'Read: "The Five Dysfunctions of a Team" by Patrick Lencioni'],
+        Developing:   ['Set a goal: offer help to one teammate proactively each week', 'Practice surfacing team risks in standups — not just your own updates', 'Reflect after each team interaction: did I contribute to or drain the team?'],
+        'Needs Focus': ['Attend a team dynamics or collaboration workshop', 'Ask teammates for honest feedback on how you show up in the team', 'Focus on one reliability improvement: always deliver what you commit to'],
+        'Critical Gap': ['Seek immediate coaching focused on team dynamics and trust-building', 'Have honest conversations with your manager about teamwork expectations', 'Start small: respond to teammates promptly and follow through on every commitment'],
+      },
+    };
+
+    function getImprovementPlan(cat, pct) {
+      const level = getLevel(pct);
+      return IMPROVEMENT_PLANS[cat]?.[level.label] || ['Focus on building foundational skills in this area.'];
+    }
+
+    // ── Skill Strength Ranking ────────────────────────────────────────
+    const rankedCats = [...state.selectedCategories]
+      .filter(c => stats[c].pct !== null)
+      .sort((a, b) => (stats[b].pct || 0) - (stats[a].pct || 0));
+
+    // ════════════════════════════════════════════════════════════════════
+    // PAGE 1 — Cover
+    // ════════════════════════════════════════════════════════════════════
+    doc.setFillColor(26, 26, 26); doc.rect(0, 0, PW, 50, 'F');
+    doc.setFillColor(255, 198, 47); doc.rect(0, 48, PW, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Soft Skills Assessment', PW / 2, 18, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    doc.setTextColor(180, 180, 180);
+    doc.text('Psychometric Competency Report', PW / 2, 30, { align: 'center' });
+    doc.setFontSize(9); doc.setTextColor(255, 198, 47);
+    doc.text(`Categories: ${state.selectedCategories.join(' · ')}`, PW / 2, 40, { align: 'center' });
 
     y = 62;
-    [['Employee:', state.employeeData.name],['Role:', state.employeeData.role],
-     ['Date:', new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})]
+    [['Employee:', state.employeeData.name], ['Role:', state.employeeData.role],
+     ['Date:', new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })]
     ].forEach(([label, value]) => {
-      doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(80,80,80); doc.text(label,20,y);
-      doc.setFont('helvetica','bold'); doc.setTextColor(26,26,26); doc.text(value,65,y); y+=8;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(80, 80, 80); doc.text(label, 20, y);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 26, 26); doc.text(value, 65, y); y += 8;
     });
 
+    // Overall Score Circle
     y = 98;
-    doc.setFillColor(255,198,47); doc.circle(PW/2,y+18,20,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(26,26,26);
-    doc.text(overall+'%', PW/2, y+22, {align:'center'});
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(80,80,80);
-    doc.text('Overall Score', PW/2, y+33, {align:'center'});
+    doc.setFillColor(255, 198, 47); doc.circle(PW / 2, y + 18, 20, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(26, 26, 26);
+    doc.text(overall + '%', PW / 2, y + 22, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(80, 80, 80);
+    doc.text('Overall Score', PW / 2, y + 33, { align: 'center' });
     const lvl = getLevel(overall); const lc = hexToRgb(lvl.color);
-    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(lc.r,lc.g,lc.b);
-    doc.text(lvl.label, PW/2, y+43, {align:'center'});
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(lc.r, lc.g, lc.b);
+    doc.text(lvl.label, PW / 2, y + 43, { align: 'center' });
 
+    // Category Breakdown
     y = 152;
-    doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(26,26,26);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(26, 26, 26);
     doc.text('Category Breakdown', 20, y); y += 10;
     state.selectedCategories.forEach(cat => {
       const s = stats[cat]; const catLvl = getLevel(s.pct);
       const pctVal = s.pct !== null ? s.pct : 0; const rc = hexToRgb(catLvl.color);
-      doc.setFillColor(248,248,248); doc.roundedRect(18,y-6,PW-36,16,2,2,'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(26,26,26); doc.text(cat,22,y+2);
-      doc.setFillColor(220,220,220); doc.roundedRect(75,y-1,70,5,2,2,'F');
-      doc.setFillColor(rc.r,rc.g,rc.b);
-      if (pctVal>0) doc.roundedRect(75,y-1,70*pctVal/100,5,2,2,'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(rc.r,rc.g,rc.b);
-      doc.text(s.pct!==null?s.pct+'%':'—', PW-22, y+2, {align:'right'});
-      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
-      doc.text(`${s.answered} answered · ${s.skipped} skipped`, PW-22, y+8, {align:'right'});
+      doc.setFillColor(248, 248, 248); doc.roundedRect(18, y - 6, PW - 36, 16, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26, 26, 26); doc.text(cat, 22, y + 2);
+      drawProgressBar(75, y - 1, 70, 5, pctVal, catLvl.color);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(s.pct !== null ? s.pct + '%' : '—', PW - 22, y + 2, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+      doc.text(`${s.answered} answered · ${s.skipped} skipped`, PW - 22, y + 8, { align: 'right' });
       y += 18;
     });
 
+    // Charts
     y += 6;
-    try { const img = document.getElementById('chart-radar').toDataURL('image/png'); if(img&&img.length>100) doc.addImage(img,'PNG',15,y,75,65); } catch(e){}
-    try { const img = document.getElementById('chart-bar').toDataURL('image/png');   if(img&&img.length>100) doc.addImage(img,'PNG',100,y,78,65); } catch(e){}
+    try { const img = document.getElementById('chart-radar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, 75, 65); } catch (e) { }
+    try { const img = document.getElementById('chart-bar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 100, y, 78, 65); } catch (e) { }
 
-    doc.addPage(); y = 15;
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(26,26,26);
-    doc.text('Detailed Question Responses', 20, y); y+=6;
-    doc.setFillColor(255,198,47); doc.rect(20,y,PW-40,1.5,'F'); y+=9;
+    // ════════════════════════════════════════════════════════════════════
+    // PAGE 2 — Skill Strength Ranking
+    // ════════════════════════════════════════════════════════════════════
+    doc.addPage(); y = 18;
 
-    state.selectedCategories.forEach(cat => {
-      if (y>PH-40) { doc.addPage(); y=15; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(11);
-      doc.setTextColor(255,255,255); doc.setFillColor(26,26,26);
-      doc.rect(18,y-6,PW-36,11,'F'); doc.text(cat,22,y); y+=13;
-      (state.selectedQuestions[cat]||[]).forEach((q,qi) => {
-        if (y>PH-28) { doc.addPage(); y=15; }
-        const ans = state.answers[q.id];
-        let ansLabel='—', ansColor={r:150,g:150,b:150};
-        if (ans==='skipped') { ansLabel='Skipped'; ansColor={r:180,g:180,b:180}; }
-        else if (ans!=null) {
-          if (q.type==='choice') {
-            const closest = q.options.reduce((best,o) => Math.abs(choiceToScore(o.score)-ans)<Math.abs(choiceToScore(best.score)-ans)?o:best, q.options[0]);
-            ansLabel = closest.label; ansColor={r:86,g:239,b:172};
-          } else {
-            const scale = q.type==='freq'?FREQ_SCALE:LIKERT_SCALE;
-            const opt = scale.find(l=>l.value===ans);
-            if (opt) { ansLabel=opt.label; ansColor=hexToRgb(opt.color); }
-          }
-        }
-        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-        const lines = doc.splitTextToSize(`Q${qi+1}. ${q.text}`, PW-50);
-        doc.text(lines,20,y); y+=lines.length*4.8;
-        doc.setFont('helvetica','bold'); doc.setFontSize(9);
-        doc.setTextColor(ansColor.r,ansColor.g,ansColor.b); doc.text(ansLabel,25,y); y+=8;
-      });
-      y+=4;
+    sectionTitle('SKILL STRENGTH RANKING');
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100);
+    doc.text('Skills ranked from strongest to most in need of development based on your responses.', ML, y);
+    y += 10;
+
+    const medals = ['🥇', '🥈', '🥉'];
+    rankedCats.forEach((cat, i) => {
+      checkPage(28);
+      const s     = stats[cat];
+      const level = getLevel(s.pct);
+      const rc    = hexToRgb(level.color);
+      const pct   = s.pct || 0;
+      const rank  = i + 1;
+
+      // Card background
+      doc.setFillColor(rank === 1 ? 255 : rank === 2 ? 248 : 245,
+                       rank === 1 ? 248 : rank === 2 ? 248 : 245,
+                       rank === 1 ? 220 : 248);
+      doc.roundedRect(ML, y, CW, 22, 3, 3, 'F');
+      doc.setDrawColor(rc.r, rc.g, rc.b); doc.setLineWidth(0.5);
+      doc.roundedRect(ML, y, CW, 22, 3, 3, 'S');
+
+      // Rank number
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(`#${rank}`, ML + 5, y + 14);
+
+      // Category name
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(26, 26, 26);
+      doc.text(cat, ML + 22, y + 9);
+
+      // Level badge
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(level.label, ML + 22, y + 17);
+
+      // Score + bar
+      drawProgressBar(ML + 90, y + 6, CW - 110, 4, pct, level.color);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(`${pct}%`, PW - MR - 2, y + 14, { align: 'right' });
+
+      y += 28;
     });
 
-    doc.addPage(); y=15;
-    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(26,26,26);
-    doc.text('Response Distribution',20,y); y+=8;
-    try { const img=document.getElementById('chart-dist').toDataURL('image/png'); if(img&&img.length>100) doc.addImage(img,'PNG',15,y,PW-30,70); } catch(e){}
-    doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(120,120,120);
-    doc.text(`Assessment covers: ${state.selectedCategories.join(', ')} — mixed question types (Likert, Frequency, Scenario).`,PW/2,PH-10,{align:'center',maxWidth:PW-40});
+    // ── Summary table
+    y += 4;
+    checkPage(16);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26, 26, 26);
+    doc.text('Top Strength:', ML, y);
+    if (rankedCats.length > 0) {
+      const top = rankedCats[0];
+      const topRc = hexToRgb(getLevel(stats[top].pct).color);
+      doc.setTextColor(topRc.r, topRc.g, topRc.b);
+      doc.text(`${top}  (${stats[top].pct}%)`, ML + 32, y);
+    }
+    y += 7;
+    if (rankedCats.length > 1) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26, 26, 26);
+      doc.text('Priority to Develop:', ML, y);
+      const bottom = rankedCats[rankedCats.length - 1];
+      const botRc = hexToRgb(getLevel(stats[bottom].pct).color);
+      doc.setTextColor(botRc.r, botRc.g, botRc.b);
+      doc.text(`${bottom}  (${stats[bottom].pct}%)`, ML + 38, y);
+      y += 7;
+    }
 
-    doc.save(`SSA_${state.employeeData.name.replace(/\s+/g,'_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-    showToast('PDF exported successfully!','success');
-  } catch(err) {
-    console.error(err); showToast('PDF generation failed. Please try again.','error');
+    // ════════════════════════════════════════════════════════════════════
+    // PAGE 3 — Performance Feedback & Strengths / Weaknesses
+    // ════════════════════════════════════════════════════════════════════
+    doc.addPage(); y = 18;
+    sectionTitle('PERFORMANCE FEEDBACK');
+
+    state.selectedCategories.forEach(cat => {
+      if (stats[cat].pct === null) return;
+      const analysis = getAnalysis(cat, stats[cat].pct);
+      const level    = getLevel(stats[cat].pct);
+      const rc       = hexToRgb(level.color);
+
+      checkPage(52);
+
+      // Category header
+      doc.setFillColor(rc.r, rc.g, rc.b);
+      doc.roundedRect(ML, y, CW, 9, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+      doc.text(`${cat}  ·  ${stats[cat].pct}%  ·  ${level.label}`, ML + 4, y + 6.5);
+      y += 13;
+
+      // Feedback paragraph
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
+      const fbLines = doc.splitTextToSize(analysis.fb, CW - 4);
+      doc.text(fbLines, ML + 2, y);
+      y += fbLines.length * 5.5 + 5;
+
+      // Strengths
+      checkPage(20);
+      doc.setFillColor(240, 255, 245);
+      doc.roundedRect(ML, y, (CW / 2) - 3, 5 + doc.splitTextToSize(analysis.strength, (CW / 2) - 10).length * 5, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(22, 163, 74);
+     doc.text('+ STRENGTHS', ML + 3, y + 4);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(40, 80, 40);
+      const strLines = doc.splitTextToSize(analysis.strength, (CW / 2) - 10);
+      doc.text(strLines, ML + 3, y + 10);
+
+      // Weaknesses
+      const weakX = ML + CW / 2 + 3;
+      doc.setFillColor(255, 243, 240);
+      doc.roundedRect(weakX, y, (CW / 2) - 3, 5 + doc.splitTextToSize(analysis.weakness, (CW / 2) - 10).length * 5, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(220, 38, 38);
+      doc.text('- AREAS TO DEVELOP', weakX + 3, y + 4);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(120, 30, 30);
+      const wkLines = doc.splitTextToSize(analysis.weakness, (CW / 2) - 10);
+      doc.text(wkLines, weakX + 3, y + 10);
+
+      const boxH = Math.max(strLines.length, wkLines.length) * 5 + 14;
+      y += boxH + 12;
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // PAGE 4 — Improvement Plans
+    // ════════════════════════════════════════════════════════════════════
+    doc.addPage(); y = 18;
+    sectionTitle('PERSONALISED IMPROVEMENT PLAN');
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100);
+    const planDesc = `Tailored action steps for ${state.employeeData.name} based on current performance levels. Focus on priority areas first.`;
+    const planDescLines = doc.splitTextToSize(planDesc, CW);
+    doc.text(planDescLines, ML, y);
+    y += planDescLines.length * 5 + 8;
+
+    // Priority order: lowest score first
+    const priorityOrder = [...state.selectedCategories]
+      .filter(c => stats[c].pct !== null)
+      .sort((a, b) => (stats[a].pct || 0) - (stats[b].pct || 0));
+
+    priorityOrder.forEach((cat, catIdx) => {
+      const s     = stats[cat];
+      const level = getLevel(s.pct);
+      const rc    = hexToRgb(level.color);
+      const plan  = getImprovementPlan(cat, s.pct);
+      const priority = catIdx === 0 ? 'HIGHEST PRIORITY' : catIdx === 1 ? 'HIGH PRIORITY' : catIdx === 2 ? 'MEDIUM PRIORITY' : 'MAINTENANCE';
+      const priorityColor = catIdx === 0 ? { r:220,g:38,b:38 } : catIdx === 1 ? { r:234,g:88,b:12 } : catIdx === 2 ? { r:202,g:138,b:4 } : { r:22,g:163,b:74 };
+
+      checkPage(14 + plan.length * 12);
+
+      // Header row
+      doc.setFillColor(26, 26, 26);
+      doc.roundedRect(ML, y, CW, 10, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 198, 47);
+      doc.text(cat, ML + 4, y + 7);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.setTextColor(priorityColor.r, priorityColor.g, priorityColor.b);
+      doc.text(priority, PW - MR - 2, y + 7, { align: 'right' });
+      y += 13;
+
+      // Score badge
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(rc.r, rc.g, rc.b);
+      doc.text(`Current Level: ${level.label}  (${s.pct}%)`, ML, y);
+      y += 7;
+
+      // Action steps
+      plan.forEach((step, i) => {
+        checkPage(14);
+        doc.setFillColor(i % 2 === 0 ? 250 : 255, 250, 255);
+        const stepLines = doc.splitTextToSize(step, CW - 16);
+        const stepH = stepLines.length * 5.5 + 6;
+        doc.roundedRect(ML, y, CW, stepH, 2, 2, 'F');
+        doc.setDrawColor(rc.r, rc.g, rc.b); doc.setLineWidth(0.3);
+        doc.roundedRect(ML, y, CW, stepH, 2, 2, 'S');
+
+        // Step number circle
+        doc.setFillColor(rc.r, rc.g, rc.b);
+        doc.circle(ML + 6, y + stepH / 2, 3.5, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+        doc.text(`${i + 1}`, ML + 6, y + stepH / 2 + 2.5, { align: 'center' });
+
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(30, 30, 30);
+        doc.text(stepLines, ML + 14, y + 5.5);
+        y += stepH + 4;
+      });
+      y += 8;
+    });
+
+    // ════════════════════════════════════════════════════════════════════
+    // PAGE 5 — Detailed Question Responses
+    // ════════════════════════════════════════════════════════════════════
+    doc.addPage(); y = 15;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
+    doc.text('Detailed Question Responses', 20, y); y += 6;
+    doc.setFillColor(255, 198, 47); doc.rect(20, y, PW - 40, 1.5, 'F'); y += 9;
+
+    state.selectedCategories.forEach(cat => {
+      checkPage(20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      doc.setTextColor(255, 255, 255); doc.setFillColor(26, 26, 26);
+      doc.rect(18, y - 6, PW - 36, 11, 'F'); doc.text(cat, 22, y); y += 13;
+      (state.selectedQuestions[cat] || []).forEach((q, qi) => {
+        checkPage(28);
+        const ans = state.answers[q.id];
+        let ansLabel = '—', ansColor = { r: 150, g: 150, b: 150 };
+        if (ans === 'skipped') { ansLabel = 'Skipped'; ansColor = { r: 180, g: 180, b: 180 }; }
+        else if (ans != null) {
+          if (q.type === 'choice') {
+            const closest = q.options.reduce((best, o) => Math.abs(choiceToScore(o.score) - ans) < Math.abs(choiceToScore(best.score) - ans) ? o : best, q.options[0]);
+            ansLabel = closest.label; ansColor = { r: 86, g: 239, b: 172 };
+          } else {
+            const scale = q.type === 'freq' ? FREQ_SCALE : LIKERT_SCALE;
+            const opt = scale.find(l => l.value === ans);
+            if (opt) { ansLabel = opt.label; ansColor = hexToRgb(opt.color); }
+          }
+        }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+        const lines = doc.splitTextToSize(`Q${qi + 1}. ${q.text}`, PW - 50);
+        doc.text(lines, 20, y); y += lines.length * 4.8;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b); doc.text(ansLabel, 25, y); y += 8;
+      });
+      y += 4;
+    });
+
+    // ── Response Distribution Chart
+    doc.addPage(); y = 15;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
+    doc.text('Response Distribution', 20, y); y += 8;
+    try { const img = document.getElementById('chart-dist').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, PW - 30, 70); } catch (e) { }
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+ 
+
+    // ── Page numbers
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 160);
+      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 6, { align: 'center' });
+    }
+
+    doc.save(`SSA_${state.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    showToast('PDF exported successfully!', 'success');
+  } catch (err) {
+    console.error(err); showToast('PDF generation failed. Please try again.', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF';
@@ -1037,11 +1357,10 @@ function init() {
   document.getElementById('ssa-btn-next-q').addEventListener('click', nextQuestion);
   document.getElementById('ssa-btn-skip').addEventListener('click', skipQuestion);
   document.getElementById('ssa-btn-finish-early').addEventListener('click', () => {
-    const anyAnswered = Object.values(state.answers).some(v => v !== 'skipped');
-    if (!anyAnswered) { showToast('Please answer at least one question.','warning'); return; }
+    const anyAnswered = Object.values(state.answers).some(v => v !== null && v !== undefined && v !== 'skipped');
+    if (!anyAnswered) { showToast('Please answer at least one question before viewing results.','warning'); return; }
     finishAssessment();
   });
-
   document.getElementById('res-btn-pdf').addEventListener('click', generatePDF);
   document.getElementById('res-btn-restart').addEventListener('click', () => {
     state = {
