@@ -1,10 +1,16 @@
 'use strict';
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+//Config 
 const STORAGE_KEY    = 'ssa_v2';
-const TOTAL_QUESTIONS = 40; // always 40 total, split evenly across selected cats
 
-// ─── Category Metadata ────────────────────────────────────────────────────────
+// Dynamic question distribution
+function getQuestionsPerCategory() {
+  const catCount = state.selectedCategories?.length || 4;
+  if (catCount === 1) return 40; // 1 category = 40 questions
+  return 20; // 2+ categories = 20 each
+}
+
+//Category Metadata 
 const CATEGORY_META = {
   Communication: { color: '#38bdf8' },
   Leadership:    { color: '#a78bfa' },
@@ -12,11 +18,7 @@ const CATEGORY_META = {
   Teamwork:      { color: '#4ade80' },
 };
 
-// ─── Scales ───────────────────────────────────────────────────────────────────
-// type:'likert'  → Strongly Agree … Strongly Disagree
-// type:'freq'    → Always … Never
-// type:'choice'  → 4 labelled scenario options, each has a score 1–4
-
+//Scales 
 const LIKERT_SCALE = [
   { label:'Strongly Agree',    value:5, color:'#22c55e' },
   { label:'Agree',             value:4, color:'#86efac' },
@@ -33,242 +35,228 @@ const FREQ_SCALE = [
   { label:'Never',     value:1, color:'#ef4444' },
 ];
 
-const LIKERT = LIKERT_SCALE; // alias — PDF/chart code uses LIKERT
+const LIKERT = LIKERT_SCALE;
 
-// ─── Question Pools (20 per category: ~10 likert, ~5 freq, ~5 choice) ─────────
+//  Question Pools 
 const questionPools = {
 
-  // ══════════════════════════════════════════════════════════════════════════
   Communication: [
-    // ── Likert ──────────────────────────────────────────────────────────────
-    { id:'c01', type:'likert', text:'During a project kickoff, your manager gives confusing instructions. You clarify immediately rather than proceeding and figuring it out later.' },
-    { id:'c02', type:'likert', text:'When a client gives vague feedback you ask specific clarifying questions before making any changes to the work.' },
-    { id:'c03', type:'likert', text:'When challenged mid-presentation you stay composed, address the concern directly, and continue confidently.' },
-    { id:'c04', type:'likert', text:'When an ambiguous message you sent causes a teammate to misunderstand a task, you take ownership and clarify immediately.' },
-    { id:'c05', type:'likert', text:'You naturally shift your language and examples when explaining technical concepts to non-technical stakeholders.' },
-    { id:'c06', type:'likert', text:'I actively listen without planning my response until the other person has fully finished speaking.' },
-    { id:'c07', type:'likert', text:'I adjust my communication style whether I am writing a Slack message, a formal report, or giving a live presentation.' },
-    { id:'c08', type:'likert', text:'When I receive critical feedback my first instinct is to understand the perspective before defending my choices.' },
-    { id:'c09', type:'likert', text:'I feel equally comfortable delivering difficult news — such as a missed deadline — as I do sharing positive updates.' },
-    { id:'c10', type:'likert', text:'I can hold a difficult one-to-one conversation — giving critical feedback or raising a sensitive issue — without it becoming personal.' },
-    // ── Frequency ───────────────────────────────────────────────────────────
-    { id:'c11', type:'freq', text:'I summarise key decisions and next steps at the end of meetings so everyone leaves aligned.' },
-    { id:'c12', type:'freq', text:'I re-read written messages from the recipient\'s perspective before sending, checking for potential misunderstanding.' },
-    { id:'c13', type:'freq', text:'After sending an important message I follow up to confirm the recipient understood the required actions.' },
-    { id:'c14', type:'freq', text:'In remote or async settings I deliberately ensure my tone cannot be read as cold or abrupt.' },
-    { id:'c15', type:'freq', text:'I check in with people after a challenging conversation to make sure the working relationship is still intact.' },
-    // ── Scenario / Choice ───────────────────────────────────────────────────
-    { id:'c16', type:'choice', text:'A stakeholder emails saying your report "lacks depth" — no further detail. What do you do first?',
+    { id:'c01', type:'likert', text:'I clarify unclear instructions with my manager before starting work, rather than trying to figure it out later.' },
+    { id:'c02', type:'likert', text:'When receiving vague feedback, I ask specific questions to understand what needs to improve.' },
+    { id:'c03', type:'likert', text:'If challenged during a presentation, I stay calm and address the concern directly.' },
+    { id:'c04', type:'likert', text:'When my own unclear communication causes a misunderstanding, I take ownership and fix it quickly.' },
+    { id:'c05', type:'likert', text:'I can explain technical ideas in simple language when talking to people outside my field.' },
+    { id:'c06', type:'likert', text:'I listen fully to what others say before thinking about my response.' },
+    { id:'c07', type:'likert', text:'I adjust how I communicate depending on the situation — casual Slack vs formal reports vs live talks.' },
+    { id:'c08', type:'likert', text:'When I get critical feedback, I first try to understand the other person\'s perspective.' },
+    { id:'c09', type:'likert', text:'I\'m comfortable sharing both good news and difficult news — like missed deadlines or setbacks.' },
+    { id:'c10', type:'likert', text:'I can have tough conversations with teammates about sensitive issues without it damaging our relationship.' },
+    { id:'c11', type:'freq', text:'At the end of meetings, I recap key decisions and action items so everyone is aligned.' },
+    { id:'c12', type:'freq', text:'Before sending an important message, I read it from the recipient\'s view to check for confusion.' },
+    { id:'c13', type:'freq', text:'After sending important information, I follow up to confirm people understood what I needed.' },
+    { id:'c14', type:'freq', text:'In remote or async work, I deliberately write messages that sound warm, not cold or curt.' },
+    { id:'c15', type:'freq', text:'After a difficult conversation, I check in to make sure the working relationship is still good.' },
+    { id:'c16', type:'choice', text:'A colleague says your work "needs more depth" but gives no other details. What do you do first?',
       options:[
-        { label:'Rewrite the whole report immediately and resend',                            score:1 },
-        { label:'Reply asking which specific sections need more depth and why',               score:4 },
-        { label:'Forward it to your manager and ask them to deal with it',                    score:1 },
-        { label:'Add more data everywhere and resend without replying',                       score:2 },
+        { label:'Ask specifically which parts they mean and why they need more detail',               score:4 },
+        { label:'Add more information to everything and resend',                                      score:2 },
+        { label:'Rewrite the whole thing immediately',                                               score:1 },
+        { label:'Pass it to your manager to handle',                                                 score:1 },
       ]},
-    { id:'c17', type:'choice', text:'You are presenting live and realise mid-slide that one of your figures is incorrect. You:',
+    { id:'c17', type:'choice', text:'During a live presentation, you notice a number on your slide is wrong. You:',
       options:[
-        { label:'Skip past it quickly and hope nobody noticed',                               score:1 },
-        { label:'Acknowledge the error calmly, correct it verbally, and move on',             score:4 },
-        { label:'Stop the presentation and apologise at length',                              score:2 },
-        { label:'Finish presenting and send a correction email afterwards',                   score:3 },
+        { label:'Stop and correct it calmly, then move on',             score:4 },
+        { label:'Quickly move past it and hope nobody notices',         score:1 },
+        { label:'Finish the presentation, then email a correction',     score:2 },
+        { label:'Stop to apologize at length about the mistake',        score:2 },
       ]},
-    { id:'c18', type:'choice', text:'A colleague from another team built the wrong thing because your brief was ambiguous. You:',
+    { id:'c18', type:'choice', text:'Your brief was unclear, so a colleague built the wrong thing. You:',
       options:[
-        { label:'Point out they should have asked for clarification earlier',                 score:1 },
-        { label:'Acknowledge the brief was unclear, meet to realign, and rewrite it',         score:4 },
-        { label:'Accept the output and work around it',                                       score:2 },
-        { label:'Rewrite the brief and resend without a conversation',                        score:2 },
+        { label:'Take responsibility, meet with them to realign, and rewrite it together',  score:4 },
+        { label:'Point out they should have asked for clarification',                       score:1 },
+        { label:'Accept what they built and find a workaround',                            score:2 },
+        { label:'Rewrite and resend the brief without talking to them',                    score:2 },
       ]},
-    { id:'c19', type:'choice', text:'You need to tell a long-standing client that their project will be three weeks late. You:',
+    { id:'c19', type:'choice', text:'You need to tell an important client their project is delayed by three weeks. You:',
       options:[
-        { label:'Send a brief email and hope they do not push back',                          score:1 },
-        { label:'Call them directly, explain the reason clearly, and outline the new plan',   score:4 },
-        { label:'Ask your manager to make the call',                                          score:2 },
-        { label:'Delay telling them until you are certain of the new date',                   score:2 },
+        { label:'Call them directly, explain the reason, and share the new timeline',       score:4 },
+        { label:'Send a brief email and hope they don\'t push back',                       score:1 },
+        { label:'Wait until you\'re certain about the new date before telling them',       score:2 },
+        { label:'Ask your manager to deliver the news',                                   score:2 },
       ]},
-    { id:'c20', type:'choice', text:'Two senior colleagues are having a heated disagreement in a meeting you are facilitating. You:',
+    { id:'c20', type:'choice', text:'Two senior people are in a heated disagreement in your meeting. You:',
       options:[
-        { label:'Let them resolve it themselves — it is not your place to intervene',         score:1 },
-        { label:'Pause the meeting, acknowledge both views, and redirect to the shared goal', score:4 },
-        { label:'Side with whoever you think is right and move on',                          score:1 },
-        { label:'Suggest taking it offline and move to the next agenda item',                score:3 },
+        { label:'Pause and acknowledge both viewpoints, then redirect to the shared goal',  score:4 },
+        { label:'Stay out of it and let them sort it themselves',                         score:1 },
+        { label:'Suggest moving the conversation offline, then continue the meeting',      score:3 },
+        { label:'Side with whoever you think is right',                                   score:1 },
       ]},
   ],
 
-  // ══════════════════════════════════════════════════════════════════════════
+  
   Leadership: [
-    // ── Likert ──────────────────────────────────────────────────────────────
-    { id:'l01', type:'likert', text:'After a team failure you take time to rebuild morale and run a retrospective before pushing toward the next deadline.' },
-    { id:'l02', type:'likert', text:'You raise process inefficiencies constructively even when they exist in another team\'s domain.' },
-    { id:'l03', type:'likert', text:'When two team members have ongoing tension affecting output you address it directly with both parties rather than waiting.' },
-    { id:'l04', type:'likert', text:'Under a tight deadline with incomplete information you make a clear call, communicate the reasoning, and commit.' },
-    { id:'l05', type:'likert', text:'You deliver honest, specific feedback to a high-performer about a significant blind spot even when it is awkward.' },
-    { id:'l06', type:'likert', text:'I invest time developing junior colleagues even when it temporarily slows my own output.' },
-    { id:'l07', type:'likert', text:'Before starting an initiative I define clear success criteria so the team knows exactly what done looks like.' },
-    { id:'l08', type:'likert', text:'I delegate meaningful responsibilities even when I believe I could personally do them better.' },
-    { id:'l09', type:'likert', text:'I can articulate a compelling why behind decisions rather than simply issuing directives.' },
-    { id:'l10', type:'likert', text:'I hold myself to the same standards I hold my team — I do not ask others to do things I would not do myself.' },
-    // ── Frequency ───────────────────────────────────────────────────────────
-    { id:'l11', type:'freq', text:'I check in on my team\'s wellbeing and workload — not just on task completion and deadlines.' },
-    { id:'l12', type:'freq', text:'I create space for quieter voices in meetings where louder personalities tend to dominate.' },
-    { id:'l13', type:'freq', text:'When pressure pushes toward cutting corners I push back constructively while still working toward the core objective.' },
-    { id:'l14', type:'freq', text:'I lead a structured review after significant setbacks to extract lessons before moving on.' },
-    { id:'l15', type:'freq', text:'I acknowledge my own mistakes openly in front of my team rather than quietly correcting them.' },
-    // ── Scenario / Choice ───────────────────────────────────────────────────
-    { id:'l16', type:'choice', text:'A strong performer on your team is resistant to feedback and dismisses your input each time. You:',
+    { id:'l01', type:'likert', text:'After a team failure, I take time to support the team before pushing toward the next deadline.' },
+    { id:'l02', type:'likert', text:'I bring up process problems constructively, even when they\'re in another team\'s area.' },
+    { id:'l03', type:'likert', text:'When tension between teammates is affecting work, I address it directly with both of them.' },
+    { id:'l04', type:'likert', text:'Under tight deadlines with incomplete info, I make a clear decision and explain my reasoning.' },
+    { id:'l05', type:'likert', text:'I give honest feedback to strong performers about their blind spots, even when it\'s awkward.' },
+    { id:'l06', type:'likert', text:'I spend time developing junior team members, even if it slows my own work.' },
+    { id:'l07', type:'likert', text:'Before starting a project, I define what success looks like so the team knows the goal.' },
+    { id:'l08', type:'likert', text:'I delegate meaningful work to my team, even when I could do it faster myself.' },
+    { id:'l09', type:'likert', text:'I explain the "why" behind my decisions instead of just telling people what to do.' },
+    { id:'l10', type:'likert', text:'I hold myself to the same standards I expect from my team.' },
+    { id:'l11', type:'freq', text:'I check in on how my team is doing — not just if they\'re meeting deadlines.' },
+    { id:'l12', type:'freq', text:'I make sure quieter team members get heard in meetings.' },
+    { id:'l13', type:'freq', text:'When pressure is pushing us to cut corners, I push back while still working toward the goal.' },
+    { id:'l14', type:'freq', text:'After a big setback, I lead a review to understand what happened before moving on.' },
+    { id:'l15', type:'freq', text:'I admit my own mistakes openly to the team instead of quietly fixing them.' },
+    { id:'l16', type:'choice', text:'A strong team member resists feedback and dismisses your input every time. You:',
       options:[
-        { label:'Stop giving feedback to avoid the conflict',                                 score:1 },
-        { label:'Escalate directly to HR without speaking to them first',                     score:1 },
-        { label:'Have a direct one-to-one exploring why feedback feels threatening to them',  score:4 },
-        { label:'Document the pattern but take no further action yet',                        score:2 },
+        { label:'Have a one-on-one to understand why they feel defensive about feedback',        score:4 },
+        { label:'Stop giving them feedback to avoid conflict',                                  score:1 },
+        { label:'Escalate to HR without talking to them first',                                score:1 },
+        { label:'Document the pattern and wait',                                               score:2 },
       ]},
-    { id:'l17', type:'choice', text:'Your team is divided on a key strategic decision and the deadline is tomorrow. You:',
+    { id:'l17', type:'choice', text:'Your team disagrees on a key decision and you need to decide tomorrow. You:',
       options:[
-        { label:'Pick the most popular option to keep everyone happy',                        score:2 },
-        { label:'Make the call yourself, explain your reasoning clearly, and move forward',   score:4 },
-        { label:'Delay the decision and commission more research',                            score:1 },
-        { label:'Let the team vote and commit to the majority outcome',                       score:3 },
+        { label:'Make the call yourself, explain why, and move forward',            score:4 },
+        { label:'Pick the most popular option to keep everyone happy',              score:2 },
+        { label:'Let them vote and commit to what the majority wants',              score:3 },
+        { label:'Delay the decision and get more research',                         score:1 },
       ]},
-    { id:'l18', type:'choice', text:'A new joiner is struggling visibly in their first month but has not asked for help. You:',
+    { id:'l18', type:'choice', text:'A new team member is struggling but hasn\'t asked for help. You:',
       options:[
-        { label:'Wait — they need to learn to advocate for themselves',                       score:1 },
-        { label:'Proactively check in, ask open questions, and offer concrete support',       score:4 },
-        { label:'Ask their onboarding buddy to handle it',                                    score:2 },
-        { label:'Raise it as a concern in their first formal review',                         score:1 },
+        { label:'Check in proactively, ask how things are going, and offer support',  score:4 },
+        { label:'Wait — they need to learn to ask for help themselves',               score:1 },
+        { label:'Ask their onboarding buddy to handle it',                            score:2 },
+        { label:'Bring it up in their first formal review',                           score:1 },
       ]},
-    { id:'l19', type:'choice', text:'Senior leadership publicly praises a project that your team delivered but does not mention the team. You:',
+    { id:'l19', type:'choice', text:'Leadership publicly credits a project to you, but your team did the real work. You:',
       options:[
-        { label:'Say nothing — credit disputes look unprofessional',                          score:1 },
-        { label:'Thank leadership and take the opportunity to highlight your team\'s work',   score:4 },
-        { label:'Post about the team\'s contribution on an internal channel',                 score:3 },
-        { label:'Tell your team privately but do not raise it further',                       score:2 },
+        { label:'Thank them and highlight your team\'s work',           score:4 },
+        { label:'Say nothing — it looks unprofessional to dispute credit',  score:1 },
+        { label:'Tell your team privately but don\'t raise it further',     score:2 },
+        { label:'Post on the team channel about the team\'s contributions',  score:3 },
       ]},
-    { id:'l20', type:'choice', text:'A team member is consistently delivering good work but seems disengaged and quiet lately. You:',
+    { id:'l20', type:'choice', text:'A good performer seems disengaged and quiet lately. You:',
       options:[
-        { label:'Give them space — they probably just have something going on personally',    score:2 },
-        { label:'Check in informally, ask how things are going beyond the work',              score:4 },
-        { label:'Wait to see if their output starts to drop before acting',                   score:1 },
-        { label:'Mention it in their next scheduled one-to-one',                              score:3 },
+        { label:'Check in casually, ask how things are going beyond work',      score:4 },
+        { label:'Give them space — they probably have something personal going on',  score:2 },
+        { label:'Wait to see if their work quality drops',                       score:1 },
+        { label:'Bring it up at your next scheduled one-on-one',                 score:3 },
       ]},
   ],
 
-  // ══════════════════════════════════════════════════════════════════════════
   Confidence: [
-    // ── Likert ──────────────────────────────────────────────────────────────
-    { id:'cf01', type:'likert', text:'When asked a question in a senior meeting that you do not know the answer to, you acknowledge it openly and offer to follow up.' },
-    { id:'cf02', type:'likert', text:'When invited to present work-in-progress to executives you present clearly and own the current limitations without over-apologising.' },
-    { id:'cf03', type:'likert', text:'When you publicly back a project that fails you own it transparently and focus on lessons rather than distancing yourself.' },
-    { id:'cf04', type:'likert', text:'In a salary negotiation where the first offer is below expectations you counter with a clear and calm rationale.' },
-    { id:'cf05', type:'likert', text:'When a senior stakeholder challenges your analysis in front of others you calmly stand by your data while staying open to new evidence.' },
-    { id:'cf06', type:'likert', text:'I volunteer for high-visibility projects rather than waiting to be assigned.' },
-    { id:'cf07', type:'likert', text:'Constructive criticism motivates me to improve rather than making me question my overall ability.' },
-    { id:'cf08', type:'likert', text:'I take on stretch assignments outside my current skill set because I trust I can grow into them.' },
-    { id:'cf09', type:'likert', text:'I feel confident contributing my perspective even in rooms full of significantly more experienced people.' },
-    { id:'cf10', type:'likert', text:'I genuinely believe my contributions make a meaningful difference to my team\'s results.' },
-    // ── Frequency ───────────────────────────────────────────────────────────
-    { id:'cf11', type:'freq', text:'After making a visible mistake in front of colleagues I recover quickly without excessive dwelling or self-criticism.' },
-    { id:'cf12', type:'freq', text:'I speak up when I notice something going wrong — even if it means respectfully challenging a senior colleague.' },
-    { id:'cf13', type:'freq', text:'When starting something entirely unfamiliar I approach the learning curve with curiosity rather than anxiety.' },
-    { id:'cf14', type:'freq', text:'I accept public recognition gracefully without deflecting, minimising my role, or feeling uncomfortable.' },
-    { id:'cf15', type:'freq', text:'I reflect on wins as well as failures — I give myself credit when things go well.' },
-    // ── Scenario / Choice ───────────────────────────────────────────────────
-    { id:'cf16', type:'choice', text:'You have a strong opinion in a meeting but the room seems to be leaning the other way. You:',
+    { id:'cf01', type:'likert', text:'When asked something I don\'t know in a senior meeting, I say so and offer to follow up.' },
+    { id:'cf02', type:'likert', text:'I can present early-stage work to senior people without over-apologizing for what\'s not done yet.' },
+    { id:'cf03', type:'likert', text:'If I publicly back a project that fails, I take responsibility and focus on what we\'ll learn.' },
+    { id:'cf04', type:'likert', text:'In salary discussions, I can counter a low offer with clear reasoning.' },
+    { id:'cf05', type:'likert', text:'When a senior person challenges my data in front of others, I calmly stand by it while staying open to new info.' },
+    { id:'cf06', type:'likert', text:'I volunteer for high-visibility projects instead of waiting to be asked.' },
+    { id:'cf07', type:'likert', text:'Constructive criticism makes me want to improve, not question my abilities.' },
+    { id:'cf08', type:'likert', text:'I take on projects outside my current skill set because I believe I can learn and grow.' },
+    { id:'cf09', type:'likert', text:'I\'m comfortable sharing my perspective even in rooms full of experienced people.' },
+    { id:'cf10', type:'likert', text:'I genuinely believe my work makes a real difference to my team\'s results.' },
+    { id:'cf11', type:'freq', text:'If I make a visible mistake in front of colleagues, I move on quickly without dwelling on it.' },
+    { id:'cf12', type:'freq', text:'I speak up when I see something wrong, even if it means respectfully challenging a senior person.' },
+    { id:'cf13', type:'freq', text:'When starting something unfamiliar, I approach it with curiosity, not anxiety.' },
+    { id:'cf14', type:'freq', text:'When someone recognizes my work publicly, I accept it gracefully without deflecting.' },
+    { id:'cf15', type:'freq', text:'I celebrate my own wins and give myself credit when things go well.' },
+    { id:'cf16', type:'choice', text:'You have a strong opinion in a meeting but the room is leaning the other way. You:',
       options:[
-        { label:'Stay quiet — it is not worth the potential conflict',                        score:1 },
-        { label:'Share your view clearly with evidence and invite others to push back',       score:4 },
-        { label:'Wait until after the meeting to mention it privately to one person',         score:2 },
-        { label:'Go along with the room but flag your concern in the follow-up email',        score:3 },
+        { label:'Share your view with evidence and invite pushback',                  score:4 },
+        { label:'Stay quiet — it\'s not worth the potential conflict',               score:1 },
+        { label:'Mention it privately to one person after the meeting',              score:2 },
+        { label:'Go along with the room but flag your concern in the follow-up email',  score:3 },
       ]},
-    { id:'cf17', type:'choice', text:'You are asked to lead a project that is significantly outside your experience. You:',
+    { id:'cf17', type:'choice', text:'You\'re asked to lead a project way outside your experience. You:',
       options:[
-        { label:'Decline and suggest someone more experienced takes it',                      score:1 },
-        { label:'Accept, identify your gaps honestly, and put a plan in place to address them',score:4 },
-        { label:'Accept but do not flag the gaps, planning to figure it out as you go',       score:2 },
-        { label:'Accept but immediately ask for a co-lead to share the responsibility',       score:3 },
+        { label:'Accept, identify your gaps honestly, and make a plan to address them',  score:4 },
+        { label:'Decline and suggest someone more experienced',                          score:1 },
+        { label:'Accept but don\'t flag the gaps, figure it out as you go',              score:2 },
+        { label:'Accept but immediately ask for a co-lead',                              score:3 },
       ]},
-    { id:'cf18', type:'choice', text:'A peer publicly disputes your findings in a team meeting. Your data is correct. You:',
+    { id:'cf18', type:'choice', text:'A colleague publicly disputes your findings in a meeting. Your data is correct. You:',
       options:[
-        { label:'Back down to avoid the confrontation',                                       score:1 },
-        { label:'Calmly present your evidence and invite them to share theirs',               score:4 },
-        { label:'Become defensive and try to talk over them',                                 score:1 },
-        { label:'Say nothing in the meeting but raise it with them one-to-one afterwards',    score:3 },
+        { label:'Calmly show your evidence and invite them to share theirs',   score:4 },
+        { label:'Back down to avoid the confrontation',                        score:1 },
+        { label:'Get defensive and try to talk over them',                     score:1 },
+        { label:'Say nothing in the meeting, raise it with them one-on-one later',  score:3 },
       ]},
-    { id:'cf19', type:'choice', text:'You have been preparing for a big presentation for weeks. Right before it starts your main slide deck fails to load. You:',
+    { id:'cf19', type:'choice', text:'Right before a big presentation, your main slide deck fails to load. You:',
       options:[
-        { label:'Panic visibly and ask to reschedule',                                        score:1 },
-        { label:'Calmly acknowledge the issue, present from notes or memory, and follow up with slides', score:4 },
-        { label:'Spend ten minutes trying to fix it while the audience waits',                score:2 },
-        { label:'Ask a colleague to take over',                                               score:1 },
+        { label:'Stay calm, present from memory or notes, and follow up with the slides later',  score:4 },
+        { label:'Panic and ask to reschedule',                                                   score:1 },
+        { label:'Spend ten minutes trying to fix it while the audience waits',                  score:2 },
+        { label:'Ask a colleague to take over',                                                score:1 },
       ]},
-    { id:'cf20', type:'choice', text:'You have been in your role for six months and your manager has not given you any formal feedback. You:',
+    { id:'cf20', type:'choice', text:'You\'ve been in your role for six months with no formal feedback from your manager. You:',
       options:[
-        { label:'Assume things are fine since nobody has complained',                         score:1 },
-        { label:'Proactively request a feedback conversation and come prepared with questions',score:4 },
-        { label:'Ask colleagues informally what they think of your work',                     score:3 },
-        { label:'Wait until the formal review cycle',                                         score:2 },
+        { label:'Proactively ask for a feedback conversation and come with questions',  score:4 },
+        { label:'Assume things are fine since nobody has complained',                   score:1 },
+        { label:'Ask colleagues informally what they think of your work',               score:3 },
+        { label:'Wait until the formal review cycle',                                   score:2 },
       ]},
   ],
 
   Teamwork: [
-   
-    { id:'t01', type:'likert', text:'When a teammate is visibly overwhelmed you offer to absorb some of their tasks without being asked.' },
-    { id:'t02', type:'likert', text:'When the team makes a decision that goes against your recommendation you commit to it fully and constructively.' },
-    { id:'t03', type:'likert', text:'When a new team member joins and seems lost you proactively reach out to help them settle in.' },
-    { id:'t04', type:'likert', text:'During a brainstorm when a colleague raises an idea you initially think is weak you build on it rather than dismissing it.' },
-    { id:'t05', type:'likert', text:'When a colleague is underperforming and affecting morale you address it with them directly and supportively.' },
-    { id:'t06', type:'likert', text:'In group projects I contribute as fully as I would if I were solely responsible, regardless of how credit is shared.' },
-    { id:'t07', type:'likert', text:'I acknowledge a colleague\'s contribution publicly when their input leads to a positive team outcome.' },
-    { id:'t08', type:'likert', text:'I keep teammates informed of my progress, blockers, and priority shifts without waiting to be asked.' },
-    { id:'t09', type:'likert', text:'I treat shared team agreements — stand-ups, deadlines, response times — as genuine commitments, not loose suggestions.' },
-    { id:'t10', type:'likert', text:'I give honest, constructive input even when it means disagreeing with the direction the team is heading.' },
-    // ── Frequency ───────────────────────────────────────────────────────────
-    { id:'t11', type:'freq', text:'I surface uncomfortable team issues early rather than letting them fester.' },
-    { id:'t12', type:'freq', text:'After a team success I focus on recognising the collective effort rather than individual contributions.' },
-    { id:'t13', type:'freq', text:'I actively seek out perspectives from teammates whose backgrounds or thinking styles differ significantly from mine.' },
-    { id:'t14', type:'freq', text:'When the team is under pressure I stay calm and focus on solutions rather than adding to the stress.' },
-    { id:'t15', type:'freq', text:'I check in on teammates\' wellbeing outside of work deliverables — not just when a task needs doing.' },
-    // ── Scenario / Choice ───────────────────────────────────────────────────
-    { id:'t16', type:'choice', text:'Your team is behind schedule. A teammate is blocked and has not flagged it. You notice. You:',
+    { id:'t01', type:'likert', text:'When a teammate looks overwhelmed, I offer to help with their work without being asked.' },
+    { id:'t02', type:'likert', text:'When the team decides something I disagreed with, I still commit and support the decision.' },
+    { id:'t03', type:'likert', text:'When someone new joins the team and seems lost, I reach out and help them get settled.' },
+    { id:'t04', type:'likert', text:'In brainstorms, if a colleague suggests an idea I initially think is weak, I build on it rather than dismiss it.' },
+    { id:'t05', type:'likert', text:'If a teammate\'s performance is dropping and affecting morale, I address it with them supportively.' },
+    { id:'t06', type:'likert', text:'On group projects, I contribute fully, regardless of how credit is shared.' },
+    { id:'t07', type:'likert', text:'I acknowledge teammates\' contributions publicly when their work leads to a positive outcome.' },
+    { id:'t08', type:'likert', text:'I keep my team informed about my progress, blockers, and priority changes without being asked.' },
+    { id:'t09', type:'likert', text:'When the team commits to something — standups, deadlines, response times — I treat it seriously.' },
+    { id:'t10', type:'likert', text:'I give honest input even when it means disagreeing with where the team is headed.' },
+    { id:'t11', type:'freq', text:'I bring up team problems early rather than letting them build up.' },
+    { id:'t12', type:'freq', text:'After a team win, I focus on recognizing the collective effort, not individual contributions.' },
+    { id:'t13', type:'freq', text:'I actively seek out perspectives from teammates with different backgrounds or thinking styles.' },
+    { id:'t14', type:'freq', text:'Under pressure, I stay calm and focus on solutions, not adding to the stress.' },
+    { id:'t15', type:'freq', text:'I check in on how my teammates are doing personally, not just on their work.' },
+    { id:'t16', type:'choice', text:'Your team is behind. A teammate is blocked but hasn\'t said anything. You notice. You:',
       options:[
-        { label:'It is their responsibility to speak up — you focus on your own work',        score:1 },
-        { label:'Check in with them privately, offer to help unblock, and flag the risk to the team', score:4 },
-        { label:'Mention it to your manager without speaking to the teammate first',           score:2 },
-        { label:'Wait until the next standup to raise it',                                    score:2 },
+        { label:'Check in privately, offer help to unblock them, and flag the risk to the team',  score:4 },
+        { label:'It\'s their job to speak up — focus on your own work',                           score:1 },
+        { label:'Mention it to your manager without talking to the teammate first',               score:2 },
+        { label:'Wait until the next standup to raise it',                                        score:2 },
       ]},
-    { id:'t17', type:'choice', text:'In a retrospective a colleague shares feedback about your communication style that feels unfair. You:',
+    { id:'t17', type:'choice', text:'In a retrospective, a colleague gives you feedback about your communication that feels unfair. You:',
       options:[
-        { label:'Dismiss it — they clearly misunderstood your intent',                        score:1 },
-        { label:'Thank them, ask for a specific example, and reflect on it genuinely',        score:4 },
-        { label:'Defend yourself in the meeting to set the record straight',                  score:1 },
-        { label:'Say nothing in the meeting but raise it with them one-to-one later',         score:3 },
+        { label:'Thank them, ask for a specific example, and genuinely reflect',     score:4 },
+        { label:'Dismiss it — they misunderstood your intent',                       score:1 },
+        { label:'Defend yourself in the meeting to set the record straight',         score:1 },
+        { label:'Say nothing in the meeting, raise it with them one-on-one later',   score:3 },
       ]},
-    { id:'t18', type:'choice', text:'Credit for a major team win is being given entirely to one colleague in leadership communications. You:',
+    { id:'t18', type:'choice', text:'Leadership is crediting one colleague for a major team accomplishment. You:',
       options:[
-        { label:'Say nothing — getting into credit disputes looks unprofessional',            score:1 },
-        { label:'Raise it with your manager, focusing on ensuring the full team is recognised',score:4 },
-        { label:'Post about the team\'s collective work on an internal channel',               score:3 },
-        { label:'Confront the colleague directly and tell them to correct it',                score:2 },
+        { label:'Raise it with your manager, focusing on ensuring the whole team gets recognized',  score:4 },
+        { label:'Say nothing — getting into credit disputes looks unprofessional',                  score:1 },
+        { label:'Tell your team privately but don\'t raise it further',                             score:2 },
+        { label:'Post about the team\'s collective work on the team channel',                       score:3 },
       ]},
-    { id:'t19', type:'choice', text:'A team member you work closely with has started missing small commitments repeatedly. You:',
+    { id:'t19', type:'choice', text:'A teammate you work closely with has started missing small commitments. You:',
       options:[
+        { label:'Have a direct, supportive conversation about the pattern you\'ve noticed',  score:4 },
         { label:'Cover for them silently to keep things moving',                              score:2 },
-        { label:'Have a direct, supportive conversation about the pattern you have noticed',  score:4 },
-        { label:'Start documenting the misses in case it becomes a formal issue',             score:2 },
-        { label:'Raise it with your manager before speaking to the person directly',          score:1 },
+        { label:'Start documenting the misses in case it becomes formal',                    score:2 },
+        { label:'Raise it with your manager before talking to them',                         score:1 },
       ]},
-    { id:'t20', type:'choice', text:'Your team is about to present a solution you privately believe has a serious flaw. There is still time to raise it. You:',
+    { id:'t20', type:'choice', text:'Your team is about to present a solution you think has a serious flaw. There\'s still time to raise it. You:',
       options:[
-        { label:'Stay quiet — the team decided and you do not want to derail things now',     score:1 },
-        { label:'Raise the concern clearly before the presentation and propose a mitigation', score:4 },
-        { label:'Mention it to one teammate privately and leave the decision to them',        score:2 },
-        { label:'Let it proceed and raise it in the retrospective if it goes wrong',          score:2 },
+        { label:'Raise the concern clearly before the presentation and suggest a fix',    score:4 },
+        { label:'Stay quiet — the team decided and you don\'t want to derail things',     score:1 },
+        { label:'Mention it to one teammate privately and leave the decision to them',   score:2 },
+        { label:'Let it proceed and bring it up in the retrospective if it goes wrong',  score:2 },
       ]},
   ],
 };
 
 const ALL_CATEGORIES = Object.keys(questionPools);
 
-// ─── State ────────────────────────────────────────────────────────────────────
+//State 
 let state = {
   employeeData:        null,
   selectedCategories:  [...ALL_CATEGORIES],
@@ -278,6 +266,9 @@ let state = {
   activeQuestionIndex: 0,
   phase:               'welcome',
   answerLocked:        false,
+  timerEnabled:        false,
+  questionTime:        0,
+  timerInterval:       null,
 };
 
 // Helpers 
@@ -290,21 +281,34 @@ function shuffle(arr) {
   return a;
 }
 
-// Always pick TOTAL_QUESTIONS (40) spread evenly across selected categories.
-// e.g. 1 cat = 40q | 2 cats = 20 each | 3 cats = 14/13/13 | 4 cats = 10 each
+// Always pick either 40 (1 cat) or 20 (2+ cats) per category
 function pickQuestions() {
   const result = {};
   const cats   = state.selectedCategories;
-  const base   = Math.floor(TOTAL_QUESTIONS / cats.length);
-  const extra  = TOTAL_QUESTIONS % cats.length; // first `extra` cats get +1
-  cats.forEach((cat, i) => {
-    const count = base + (i < extra ? 1 : 0);
-    result[cat] = shuffle(questionPools[cat]).slice(0, count);
+  const perCat = getQuestionsPerCategory();
+
+  cats.forEach((cat) => {
+    const pool  = questionPools[cat];
+    const shuffled = shuffle(pool);
+    
+    if (pool.length >= perCat) {
+      result[cat] = shuffled.slice(0, perCat);
+    } else {
+      const filled = [];
+      while (filled.length < perCat) {
+        const remaining = perCat - filled.length;
+        const batch = shuffle(pool).slice(0, Math.min(pool.length, remaining));
+        batch.forEach((q) => {
+          filled.push({ ...q, id: `${q.id}_r${filled.length}` });
+        });
+      }
+      result[cat] = filled.slice(0, perCat);
+    }
   });
+
   return result;
 }
 
-// Map choice score (1-4) onto 1-5 numeric scale for consistent scoring
 function choiceToScore(s) { return 1 + ((s - 1) / 3) * 4; }
 
 function getAnswer(qid) { return state.answers[qid] ?? null; }
@@ -347,6 +351,40 @@ function getLevel(pct) {
   return               { label:'Critical Gap',  color:'#ef4444' };
 }
 
+// Timer Functions
+function startTimer() {
+  if (!state.timerEnabled) return;
+  state.questionTime = 0;
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  
+  state.timerInterval = setInterval(() => {
+    state.questionTime++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+    state.timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const timerEl = document.getElementById('ssa-timer');
+  if (!timerEl) return;
+  
+  const mins = Math.floor(state.questionTime / 60);
+  const secs = state.questionTime % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatTime(seconds) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 let toastTimer = null;
 function showToast(msg, type = 'info') {
   const t = document.getElementById('ssa-toast');
@@ -356,7 +394,7 @@ function showToast(msg, type = 'info') {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
 }
 
-// ─── Render: Welcome ──────────────────────────────────────────────────────────
+//Render: Welcome 
 function renderWelcome() {
   document.getElementById('ssa-welcome').classList.add('active');
   document.getElementById('ssa-assessment').classList.remove('active');
@@ -403,23 +441,29 @@ function toggleCategory(cat) {
 function updateStartButton() {
   const btn   = document.getElementById('ssa-start-btn');
   const count = state.selectedCategories.length;
-  // Always 40 questions regardless of category count
-  const qCount = TOTAL_QUESTIONS;
-  const perCat = Math.floor(qCount / count);
+  const qPerCat = count === 1 ? 40 : 20;
+  const qCount = count * qPerCat;
 
   const statCat = document.getElementById('stat-categories');
   const statQ   = document.getElementById('stat-questions');
   if (statCat) statCat.textContent = count;
-  if (statQ)   statQ.textContent   = qCount;
+  if (statQ)   statQ.textContent   = qPerCat;
 
   if (!btn) return;
   const arrowSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
-  btn.innerHTML =
-    `<span class="btn-text-mobile">Start · ${count} cat · ${qCount}q ${arrowSvg}</span>` +
-    `<span class="btn-text-desktop">Start Assessment · ${count} ${count === 1 ? 'category' : 'categories'} · ${qCount} questions (${perCat}${count > 1 ? ' each' : ''}) ${arrowSvg}</span>`;
+  
+  if (count === 1) {
+    btn.innerHTML =
+      `<span class="btn-text-mobile">Start · 1 cat · 40q ${arrowSvg}</span>` +
+      `<span class="btn-text-desktop">Start Assessment · 1 category · 40 questions ${arrowSvg}</span>`;
+  } else {
+    btn.innerHTML =
+      `<span class="btn-text-mobile">Start · ${count} cat · ${qCount}q ${arrowSvg}</span>` +
+      `<span class="btn-text-desktop">Start Assessment · ${count} categories · ${qCount} questions (${qPerCat} each) ${arrowSvg}</span>`;
+  }
 }
 
-// ─── Render: Assessment ───────────────────────────────────────────────────────
+//Render: Assessment 
 function renderAssessment() {
   document.getElementById('ssa-welcome').classList.remove('active');
   document.getElementById('ssa-assessment').classList.add('active');
@@ -427,6 +471,7 @@ function renderAssessment() {
   renderCategoryTabs();
   renderCategoryProgress();
   renderQuestionCard();
+  startTimer();
 }
 
 function renderCategoryTabs() {
@@ -478,7 +523,6 @@ function renderQuestionCard() {
   const qNum  = state.activeQuestionIndex + 1;
   const total = activeQuestions().length;
 
-  // Badge shows category + question type
   const typeLabel = { likert:'Agree/Disagree', freq:'Frequency', choice:'Scenario' }[q.type] || '';
   document.getElementById('ssa-cat-label').textContent = `${cat}  ·  ${typeLabel}`;
   document.getElementById('ssa-q-num').textContent     = `Question ${qNum} of ${total}`;
@@ -506,7 +550,6 @@ function renderQuestionCard() {
     : 'Next <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 }
 
-// Likert or Frequency scale buttons
 function renderScaleOptions(q, scale, container) {
   const current = getAnswer(q.id);
   scale.forEach(opt => {
@@ -533,10 +576,9 @@ function renderScaleOptions(q, scale, container) {
   });
 }
 
-// 4-option scenario choice buttons
 function renderChoiceOptions(q, container) {
   const current  = getAnswer(q.id);
-  const shuffled = shuffle(q.options);
+  const shuffled = shuffle(q.options); // Always shuffle options
   shuffled.forEach(opt => {
     const score     = choiceToScore(opt.score);
     const isSelected = current !== null && current !== 'skipped' &&
@@ -565,6 +607,7 @@ function renderChoiceOptions(q, container) {
 }
 
 function advanceQuestion() {
+  stopTimer();
   const qs = activeQuestions();
   if (state.activeQuestionIndex < qs.length - 1) {
     state.activeQuestionIndex++;
@@ -580,6 +623,7 @@ function advanceQuestion() {
 }
 
 function prevQuestion() {
+  stopTimer();
   if (state.activeQuestionIndex > 0) {
     state.activeQuestionIndex--;
   } else if (state.activeCategoryIndex > 0) {
@@ -590,6 +634,7 @@ function prevQuestion() {
 }
 
 function skipQuestion() {
+  stopTimer();
   const q = activeQuestion();
   state.answers[q.id] = 'skipped';
   renderCategoryProgress();
@@ -604,13 +649,14 @@ function nextQuestion() {
   else advanceQuestion();
 }
 
-// ─── Finish ───────────────────────────────────────────────────────────────────
+//Finish 
 function finishAssessment() {
+  stopTimer();
   saveToStorage();
   renderResults();
 }
 
-// ─── Render: Results ─────────────────────────────────────────────────────────
+//Render: Results 
 function renderResults() {
   document.getElementById('ssa-welcome').classList.remove('active');
   document.getElementById('ssa-assessment').classList.remove('active');
@@ -655,7 +701,7 @@ function renderResults() {
   drawDistributionChart();
 }
 
-// ─── Charts ───────────────────────────────────────────────────────────────────
+//Charts 
 function drawRadarChart(stats) {
   const canvas = document.getElementById('chart-radar');
   const ctx    = canvas.getContext('2d');
@@ -774,7 +820,6 @@ function drawDistributionChart() {
   const ctx    = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
-  // Bucket answers: choice answers are fractional, round to nearest integer bucket
   const counts = { 5:0, 4:0, 3:0, 2:0, 1:0 };
   let total = 0;
   Object.values(state.answers).forEach(v => {
@@ -825,7 +870,7 @@ function drawDistributionChart() {
   });
 }
 
-// ─── PDF Export ───────────────────────────────────────────────────────────────
+//PDF Export
 async function generatePDF() {
   const btn = document.getElementById('res-btn-pdf');
   btn.disabled = true; btn.textContent = 'Generating…';
@@ -906,7 +951,6 @@ async function generatePDF() {
         if (ans==='skipped') { ansLabel='Skipped'; ansColor={r:180,g:180,b:180}; }
         else if (ans!=null) {
           if (q.type==='choice') {
-            // Find closest option label for PDF display
             const closest = q.options.reduce((best,o) => Math.abs(choiceToScore(o.score)-ans)<Math.abs(choiceToScore(best.score)-ans)?o:best, q.options[0]);
             ansLabel = closest.label; ansColor={r:86,g:239,b:172};
           } else {
@@ -945,7 +989,7 @@ function hexToRgb(hex) {
   return { r:parseInt(hex.slice(1,3),16), g:parseInt(hex.slice(3,5),16), b:parseInt(hex.slice(5,7),16) };
 }
 
-// ─── Storage ─────────────────────────────────────────────────────────────────
+//Storage 
 function saveToStorage() {
   try {
     let stored = { version:2, assessments:[] };
@@ -960,7 +1004,7 @@ function saveToStorage() {
   } catch(_){}
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+//Init 
 function init() {
   renderCategorySelector();
 
@@ -981,6 +1025,11 @@ function init() {
     state.activeCategoryIndex = 0;
     state.activeQuestionIndex = 0;
     state.answerLocked        = false;
+    
+    // Timer checkbox
+    const timerCheckbox = document.getElementById('ssa-enable-timer');
+    state.timerEnabled = timerCheckbox ? timerCheckbox.checked : false;
+    
     renderAssessment();
   });
 
@@ -1000,6 +1049,7 @@ function init() {
       selectedQuestions:{}, answers:{},
       activeCategoryIndex:0, activeQuestionIndex:0,
       phase:'welcome', answerLocked:false,
+      timerEnabled:false, questionTime:0, timerInterval:null,
     };
     document.getElementById('ssa-form').reset();
     document.getElementById('err-name').textContent='';
