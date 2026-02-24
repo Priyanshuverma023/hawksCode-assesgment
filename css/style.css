@@ -443,6 +443,32 @@ body {
 .likert-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .likert-label { font-weight: 500; min-width: 0; }
 
+/* ── Choice / Scenario buttons (4 options, no colour dot) ─────────────────── */
+.choice-btn {
+  /* Same base as .likert-btn but left-aligned text with a radio-style marker */
+  align-items: flex-start;
+  padding: 12px 14px;
+  line-height: 1.45;
+}
+.choice-marker {
+  /* Hollow circle — turns solid yellow when selected */
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--text-xs);
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: border-color var(--trans), background var(--trans);
+}
+.choice-btn.selected .choice-marker {
+  background: var(--yellow);
+  border-color: var(--yellow);
+}
+.choice-btn .likert-label {
+  white-space: normal;  /* allow text to wrap — options can be long */
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 /* Q actions */
 .q-actions { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
 .q-actions__right { display: flex; gap: 6px; }
