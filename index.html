@@ -13,7 +13,11 @@
 
   <!-- ── Header ──────────────────────────────────────────────────────────── -->
   <header class="app-header">
-    <div class="app-header__logo">S</div>
+    <div class="app-header__logo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#1a1a1a">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+    </div>
     <span class="app-header__title">Soft Skills Assessment</span>
     <span class="app-header__sub">Psychometric Evaluation Tool</span>
   </header>
@@ -95,7 +99,10 @@
             </div>
 
             <button type="submit" class="btn btn-primary btn-lg btn-full" id="ssa-start-btn">
-              Start Assessment →
+              Start Assessment
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6"/>
+              </svg>
             </button>
           </form>
         </div>
@@ -130,10 +137,14 @@
         <div class="likert-options" id="ssa-likert"></div>
 
         <div class="q-actions">
-          <button class="btn btn-ghost btn-sm" id="ssa-btn-prev-q">← Back</button>
+          <button class="btn btn-ghost btn-sm" id="ssa-btn-prev-q"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>
+            Back</button>
           <div class="q-actions__right">
-            <button class="btn btn-ghost btn-sm" id="ssa-btn-skip">Skip</button>
-            <button class="btn btn-secondary btn-sm" id="ssa-btn-next-q">Next →</button>
+            <button class="btn btn-ghost btn-sm" id="ssa-btn-skip">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              Skip</button>
+            <button class="btn btn-secondary btn-sm" id="ssa-btn-next-q">Next
+              <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
           </div>
         </div>
       </div>
@@ -167,8 +178,12 @@
           </p>
         </div>
         <div class="res-actions">
-          <button class="btn btn-secondary btn-sm" id="res-btn-restart">New Assessment</button>
-          <button class="btn btn-primary btn-sm" id="res-btn-pdf">Export PDF</button>
+          <button class="btn btn-secondary btn-sm" id="res-btn-restart">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              New Assessment</button>
+          <button class="btn btn-primary btn-sm" id="res-btn-pdf">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export PDF</button>
         </div>
       </div>
 

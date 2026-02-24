@@ -1,15 +1,15 @@
 'use strict';
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+// ─── Config
 const STORAGE_KEY = 'ssa_v2';
 const QUESTIONS_PER_CATEGORY = 10;
 
 // ─── Category Metadata ────────────────────────────────────────────────────────
 const CATEGORY_META = {
-  Communication: { color: '#38bdf8'},
-  Leadership:    { color: '#a78bfa'},
-  Confidence:    { color: '#fb923c'},
-  Teamwork:      { color: '#4ade80'},
+  Communication: { color: '#38bdf8' },
+  Leadership:    { color: '#a78bfa' },
+  Confidence:    { color: '#fb923c' },
+  Teamwork:      { color: '#4ade80' },
 };
 
 // ─── Question Pools — Mixed types: scenario, reflective, frequency, self-report
@@ -120,7 +120,7 @@ let state = {
   answerLocked: false,
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -207,7 +207,6 @@ function renderCategorySelector() {
     btn.className = `cat-select-btn${isSelected ? ' selected' : ''}`;
     btn.dataset.cat = cat;
     btn.innerHTML = `
-      <span class="cat-select-icon">${meta.icon}</span>
       <span class="cat-select-name">${cat}</span>
       <span class="cat-select-check">${isSelected ? '✓' : ''}</span>
     `;
@@ -237,7 +236,11 @@ function updateStartButton() {
   const count = state.selectedCategories.length;
   const qCount = count * QUESTIONS_PER_CATEGORY;
   if (btn) {
-    btn.textContent = `Start Assessment → ${count} ${count === 1 ? 'category' : 'categories'} · ${qCount} questions`;
+    const arrowSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    // Short text for mobile, full text for desktop — controlled via CSS visibility
+    btn.innerHTML =
+      `<span class="btn-text-mobile">Start · ${count} cat · ${qCount}q ${arrowSvg}</span>` +
+      `<span class="btn-text-desktop">Start Assessment · ${count} ${count === 1 ? 'category' : 'categories'} · ${qCount} questions ${arrowSvg}</span>`;
   }
   // update the stat display
   const statCat = document.getElementById('stat-categories');
@@ -267,7 +270,6 @@ function renderCategoryTabs() {
     const tab = document.createElement('button');
     tab.className = `cat-tab${isActive ? ' active' : ''}${isDone ? ' done' : ''}`;
     tab.innerHTML = `
-      <span class="cat-tab__icon">${meta.icon}</span>
       <span class="cat-tab__name">${cat}</span>
       <span class="cat-tab__count">${stats.answered}/${stats.total}</span>
     `;
@@ -306,9 +308,7 @@ function renderQuestionCard() {
   const cat = activeCategory();
   const qNum = state.activeQuestionIndex + 1;
   const total = activeQuestions().length;
-  const meta = CATEGORY_META[cat];
-
-  document.getElementById('ssa-cat-label').textContent = `${meta.icon} ${cat}`;
+  document.getElementById('ssa-cat-label').textContent = cat;
   document.getElementById('ssa-q-num').textContent = `Question ${qNum} of ${total}`;
   document.getElementById('ssa-q-text').textContent = q.text;
 
@@ -346,7 +346,12 @@ function renderQuestionCard() {
     (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
   const isLastQ   = state.activeQuestionIndex === total - 1;
   const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-  document.getElementById('ssa-btn-next-q').textContent = (isLastQ && isLastCat) ? 'Finish' : 'Next →';
+  const nextBtn = document.getElementById('ssa-btn-next-q');
+  if (isLastQ && isLastCat) {
+    nextBtn.innerHTML = 'Finish';
+  } else {
+    nextBtn.innerHTML = 'Next <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  }
 }
 
 function advanceQuestion() {
@@ -417,12 +422,11 @@ function renderResults() {
   state.selectedCategories.forEach(cat => {
     const s     = stats[cat];
     const level = getLevel(s.pct);
-    const meta  = CATEGORY_META[cat];
     const card  = document.createElement('div');
     card.className = 'res-cat-card';
     card.innerHTML = `
       <div class="res-cat-card__header">
-        <span class="res-cat-card__name">${meta.icon} ${cat}</span>
+        <span class="res-cat-card__name">${cat}</span>
         <span class="res-cat-card__level" style="color:${level.color}">${level.label}</span>
       </div>
       <div class="res-cat-card__score">${s.pct !== null ? s.pct + '%' : '—'}</div>
@@ -570,7 +574,6 @@ function drawBarChart(stats) {
     const s     = stats[cat];
     const pct   = s.pct || 0;
     const level = getLevel(s.pct);
-    const meta  = CATEGORY_META[cat];
     const x     = pad.left + gap * i + (gap - barW) / 2;
     const barH  = (pct / 100) * chartH;
     const barY  = chartY + chartH - barH;
@@ -900,7 +903,7 @@ async function generatePDF() {
     showToast('PDF generation failed. Please try again.', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Export PDF';
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF';
   }
 }
 

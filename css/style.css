@@ -294,6 +294,25 @@ body {
 .btn-sm   { padding: 6px 11px; font-size: 12px; }
 .btn-full { width: 100%; }
 
+/* ── Start button: short text on mobile, full text on desktop ─────────────── */
+.btn-text-mobile  { display: inline-flex; align-items: center; gap: 6px; }
+.btn-text-desktop { display: none; align-items: center; gap: 6px; }
+
+@media (min-width: 480px) {
+  .btn-text-mobile  { display: none; }
+  .btn-text-desktop { display: inline-flex; }
+}
+
+/* ── Button SVG icons — always vertically centred ────────────────────────── */
+.btn svg {
+  flex-shrink: 0;
+  vertical-align: middle;
+  /* Inherits stroke colour from button text colour */
+}
+.app-header__logo svg {
+  display: block;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    ASSESSMENT SECTION
 ════════════════════════════════════════════════════════════════════════════ */
