@@ -715,13 +715,7 @@ body {
 }
 
 .q-card {
-  background: linear-gradient(135deg, #ffffff 0%, #fafaf8 100%);
-  border: 1.5px solid var(--border-premium);
-  border-radius: var(--radius);
-  padding: 24px;
-  width: 100%;
-  min-width: 0;
-  box-shadow: var(--shadow);
+ overflow: visible;
 }
 
 .q-card__meta {
@@ -848,11 +842,14 @@ body {
   align-items: center;
   gap: 8px;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 14px;
 }
 
 .q-actions__right {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .finish-early-bar {
@@ -1717,5 +1714,60 @@ body {
 
   .welcome-stat__label {
     font-size: 10px;
+  }
+}
+
+.event-action-btn {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-gray);
+}
+
+.event-action-btn.delete {
+  font-size: 15px;
+  font-weight: 300;
+  color: #ef4444;
+}
+
+.q-actions .btn-sm {
+  padding: 8px 10px;
+  font-size: 11px;
+  min-height: 38px;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.q-actions .btn-sm img {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+#ssa-btn-next-q {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+/* On very small screens (<360px), shrink text further */
+@media (max-width: 359px) {
+  .q-actions .btn-sm {
+    padding: 7px 8px;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  #ssa-btn-next-q {
+    padding: 7px 10px;
+  }
+}
+
+/* On screens 360px–479px, keep everything on one row but compact */
+@media (min-width: 360px) and (max-width: 479px) {
+  .q-actions .btn-sm {
+    padding: 8px 11px;
+    font-size: 11px;
   }
 }

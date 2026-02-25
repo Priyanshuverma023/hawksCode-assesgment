@@ -1138,7 +1138,7 @@ function drawDistributionChart() {
 //PDF Export
 async function generatePDF() {
   const btn = document.getElementById('res-btn-pdf');
-  btn.disabled = true; btn.textContent = 'Generating…';
+  btn.disabled = true; btn.textContent = 'Generating...';
   try {
     const { jsPDF } = window.jspdf;
     const doc     = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
@@ -1151,7 +1151,7 @@ async function generatePDF() {
 
     // ── Helper functions ──────────────────────────────────────────────
     function checkPage(needed = 20) {
-      if (y + needed > PH - 15) { doc.addPage(); y = 18; }
+      if (y + needed > PH - 22) { doc.addPage(); y = 18; }
     }
 
     function sectionTitle(title, pageCheck = 24) {
@@ -1198,7 +1198,7 @@ async function generatePDF() {
         'Critical Gap': { fb: 'Leadership fundamentals need immediate attention. Without improvement, team performance and morale may be at risk. Structured coaching or mentoring is strongly recommended.', strength: 'Opportunity for transformational growth', weakness: 'Core leadership behaviours across all dimensions require urgent development.' },
       },
       Confidence: {
-        Exceptional:  { fb: 'You operate with high self-assurance and resilience. You take on stretch challenges, stand by your views under pressure, and recover quickly from setbacks — a powerful professional asset.', strength: 'Resilience, self-advocacy, presence under pressure, growth mindset', weakness: 'Ensure high confidence doesn\'t tip into dismissing others\' perspectives.' },
+        Exceptional:  { fb: 'You operate with high self-assurance and resilience. You take on stretch challenges, stand by your views under pressure, and recover quickly from setbacks — a powerful professional asset.', strength: 'Resilience, self-advocacy, presence under pressure, growth mindset', weakness: 'Ensure high confidence does not tip into dismissing others\' perspectives.' },
         Proficient:   { fb: 'You carry yourself with solid confidence in most situations. You speak up and take on challenges. Work on maintaining composure and assertiveness in the highest-stakes moments.', strength: 'Self-advocacy, willingness to volunteer, handling criticism constructively', weakness: 'May occasionally hesitate in very high-visibility or confrontational situations.' },
         Developing:   { fb: 'Your confidence is situational — strong in familiar territory but shaky under scrutiny or in senior settings. Building a track record of small wins will compound into greater self-assurance.', strength: 'Self-awareness, some assertiveness in familiar contexts', weakness: 'Needs development in speaking up in senior rooms, recovering from public mistakes, and self-promotion.' },
         'Needs Focus': { fb: 'Low confidence is limiting your professional impact. You may be holding back valuable contributions. Working with a coach or mentor on visibility and self-advocacy would be highly beneficial.', strength: 'Humility and self-awareness', weakness: 'Assertiveness, visibility, recovering from setbacks, and self-advocacy all need significant work.' },
@@ -1315,6 +1315,7 @@ async function generatePDF() {
     y += 6;
     try { const img = document.getElementById('chart-radar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, 75, 65); } catch (e) { }
     try { const img = document.getElementById('chart-bar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 100, y, 78, 65); } catch (e) { }
+    y += 70;
 
     // ════════════════════════════════════════════════════════════════════
     // PAGE 2 — Skill Strength Ranking
@@ -1327,7 +1328,6 @@ async function generatePDF() {
     doc.text('Skills ranked from strongest to most in need of development based on your responses.', ML, y);
     y += 10;
 
-    const medals = ['🥇', '🥈', '🥉'];
     rankedCats.forEach((cat, i) => {
       checkPage(28);
       const s     = stats[cat];
@@ -1364,7 +1364,7 @@ async function generatePDF() {
       y += 28;
     });
 
-    // ── Summary table
+    // Summary table
     y += 4;
     checkPage(16);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26, 26, 26);
@@ -1534,7 +1534,7 @@ async function generatePDF() {
         const lines = doc.splitTextToSize(`Q${qi + 1}. ${q.text}`, PW - 50);
         doc.text(lines, 20, y); y += lines.length * 4.8;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b); 
+        doc.setTextColor(ansColor.r, ansColor.g, ansColor.b);
         const timingStr = state.timerEnabled && state.questionTimings[q.id] ? ` (${formatTime(state.questionTimings[q.id])})` : '';
         doc.text(ansLabel + timingStr, 25, y); y += 8;
       });
@@ -1546,23 +1546,24 @@ async function generatePDF() {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
     doc.text('Response Distribution', 20, y); y += 8;
     try { const img = document.getElementById('chart-dist').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, PW - 30, 70); } catch (e) { }
+    y += 75;
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
-    
+
     // ── Timing Summary if timer enabled
     if (state.timerEnabled) {
       doc.addPage(); y = 15;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
       doc.text('Assessment Timing Summary', 20, y); y += 10;
-      
+
       let totalTime = 0;
       Object.values(state.questionTimings).forEach(t => { totalTime += t; });
-      
+
       doc.setFillColor(255, 249, 240);
       doc.roundedRect(18, y, PW - 36, 14, 2, 2, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(26, 26, 26);
       doc.text(`Total Assessment Time: ${formatTime(totalTime)}`, 22, y + 9);
       y += 18;
-      
+
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 100, 100);
       doc.text('Time per question helps identify areas where you spent more deliberation. No time pressure — answer at your own pace.', ML, y);
       y += 12;
@@ -1573,7 +1574,7 @@ async function generatePDF() {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 160);
-      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 6, { align: 'center' });
+      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 8, { align: 'center' });
     }
 
     doc.save(`SSA_${state.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -1582,7 +1583,7 @@ async function generatePDF() {
     console.error(err); showToast('PDF generation failed. Please try again.', 'error');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF';
+    btn.innerHTML = 'Export PDF';
   }
 }
 
