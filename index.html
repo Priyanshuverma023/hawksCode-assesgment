@@ -134,6 +134,440 @@
       margin-top: 6px;
     }
     .gcal-success-msg.show { display: flex; }
+
+    /* ─── MY EVENTS BUTTON ─────────────────────────────────────── */
+    .my-events-btn-wrap {
+      margin-top: 16px;
+      width: 100%;
+    }
+    .my-events-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px 16px;
+      background: linear-gradient(135deg, #ffffff 0%, #f5f4ed 100%);
+      color: var(--text-dark);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      position: relative;
+    }
+    .my-events-toggle-btn:hover {
+      border-color: #4285F4;
+      background: #f0f5ff;
+      box-shadow: 0 4px 16px rgba(66,133,244,0.15);
+      transform: translateY(-1px);
+    }
+    .my-events-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      background: #4285F4;
+      color: #fff;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    /* ─── MY EVENTS PANEL ──────────────────────────────────────── */
+    .my-events-panel {
+      display: none;
+      margin-top: 12px;
+      background: linear-gradient(135deg, #ffffff 0%, #fafaf8 100%);
+      border: 1.5px solid #c5d8fb;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(66,133,244,0.10);
+      animation: panelSlideIn 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .my-events-panel.open { display: block; }
+
+    @keyframes panelSlideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .my-events-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      background: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%);
+    }
+    .my-events-panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      font-family: 'DM Serif Display', serif;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .my-events-panel-close {
+      width: 28px;
+      height: 28px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      transition: all var(--trans);
+    }
+    .my-events-panel-close:hover { background: rgba(255,255,255,0.3); }
+
+    .my-events-list {
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: #c5d8fb transparent;
+    }
+    .my-events-list::-webkit-scrollbar { width: 4px; }
+    .my-events-list::-webkit-scrollbar-track { background: transparent; }
+    .my-events-list::-webkit-scrollbar-thumb { background: #c5d8fb; border-radius: 4px; }
+
+    .event-card {
+      background: #f8fbff;
+      border: 1.5px solid #e0ecff;
+      border-radius: 10px;
+      padding: 12px 12px 10px;
+      transition: all var(--trans);
+      position: relative;
+    }
+    .event-card:hover {
+      border-color: #4285F4;
+      box-shadow: 0 4px 16px rgba(66,133,244,0.12);
+    }
+    .event-card.editing {
+      border-color: #4285F4;
+      background: #f0f6ff;
+      box-shadow: 0 4px 20px rgba(66,133,244,0.18);
+    }
+
+    /* View mode */
+    .event-view { display: flex; flex-direction: column; gap: 4px; }
+    .event-view__title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dark);
+      padding-right: 60px;
+      word-break: break-word;
+    }
+    .event-view__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .event-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #1558b0;
+      background: rgba(66,133,244,0.10);
+      border-radius: 5px;
+      padding: 3px 7px;
+    }
+    .event-chip.past {
+      color: #888;
+      background: rgba(0,0,0,0.05);
+    }
+    .event-chip.future {
+      color: #166534;
+      background: rgba(52,168,83,0.10);
+    }
+    .event-view__desc {
+      font-size: 11px;
+      color: var(--text-gray);
+      line-height: 1.5;
+      margin-top: 2px;
+      word-break: break-word;
+    }
+    .event-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+    }
+    .event-action-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--trans);
+      color: var(--text-gray);
+    }
+    .event-action-btn:hover { background: #f0f5ff; border-color: #4285F4; color: #1a73e8; }
+    .event-action-btn.delete:hover { background: #fff0f0; border-color: #ef4444; color: #ef4444; }
+
+    /* Edit mode */
+    .event-edit { display: none; flex-direction: column; gap: 8px; }
+    .event-card.editing .event-view { display: none; }
+    .event-card.editing .event-edit { display: flex; }
+    .event-card.editing .event-actions { display: none; }
+
+    .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .edit-field { display: flex; flex-direction: column; gap: 4px; }
+    .edit-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .edit-input, .edit-textarea {
+      padding: 7px 9px;
+      background: #fff;
+      border: 1.5px solid #c5d8fb;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--text-dark);
+      outline: none;
+      transition: all var(--trans);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .edit-input:focus, .edit-textarea:focus {
+      border-color: #4285F4;
+      box-shadow: 0 0 0 2px rgba(66,133,244,0.12);
+    }
+    .edit-textarea { resize: vertical; min-height: 48px; }
+
+    .edit-btns {
+      display: flex;
+      gap: 7px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+    .edit-save-btn {
+      padding: 7px 14px;
+      background: linear-gradient(135deg, #4285F4 0%, #1a73e8 100%);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .edit-save-btn:hover { background: linear-gradient(135deg, #1a73e8 0%, #1558b0 100%); transform: translateY(-1px); }
+    .edit-cancel-btn {
+      padding: 7px 12px;
+      background: transparent;
+      color: var(--text-gray);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+    }
+    .edit-cancel-btn:hover { background: rgba(0,0,0,0.04); }
+    .edit-open-gcal-btn {
+      padding: 7px 12px;
+      background: rgba(66,133,244,0.08);
+      color: #1558b0;
+      border: 1px solid #c5d8fb;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .edit-open-gcal-btn:hover { background: rgba(66,133,244,0.15); border-color: #4285F4; }
+
+    .no-events-msg {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .no-events-msg svg { margin: 0 auto 8px; display: block; opacity: 0.3; }
+
+    .events-panel-footer {
+      padding: 10px 16px 12px;
+      border-top: 1px solid #e0ecff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: #f5f9ff;
+    }
+    .events-count-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .clear-all-btn {
+      font-size: 10px;
+      color: #ef4444;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all var(--trans);
+    }
+    .clear-all-btn:hover { background: #fff0f0; }
+
+    /* ─── CUSTOM CONFIRM DIALOG ────────────────────────────────── */
+    .ssa-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.38);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms ease;
+    }
+    .ssa-confirm-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .ssa-confirm-box {
+      background: linear-gradient(135deg, #ffffff 0%, #fafaf8 100%);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px 22px 20px;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+      transform: translateY(12px) scale(0.97);
+      transition: transform 220ms cubic-bezier(0.34,1.56,0.64,1), opacity 200ms ease;
+      opacity: 0;
+    }
+    .ssa-confirm-overlay.show .ssa-confirm-box {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .ssa-confirm-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+    }
+    .ssa-confirm-icon-wrap.danger { background: rgba(239,68,68,0.10); }
+    .ssa-confirm-icon-wrap.warning { background: rgba(251,191,36,0.12); }
+    .ssa-confirm-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .ssa-confirm-msg {
+      font-size: 12px;
+      color: var(--text-gray);
+      line-height: 1.65;
+      margin-bottom: 20px;
+    }
+    .ssa-confirm-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .ssa-confirm-cancel {
+      padding: 9px 16px;
+      background: transparent;
+      color: var(--text-gray);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ssa-confirm-cancel:hover { background: rgba(0,0,0,0.04); border-color: var(--accent-gold); }
+    .ssa-confirm-ok {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ssa-confirm-ok.danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.28);
+    }
+    .ssa-confirm-ok.danger:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(239,68,68,0.36);
+    }
+    .ssa-confirm-ok.warning {
+      background: linear-gradient(135deg, #ffc62f 0%, #ffb700 100%);
+      color: #1a1a1a;
+      box-shadow: 0 4px 14px rgba(255,198,47,0.28);
+    }
+    .ssa-confirm-ok.warning:hover {
+      background: linear-gradient(135deg, #ffb700 0%, #e0a800 100%);
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body>
@@ -246,6 +680,45 @@
                 Calendar opened in a new tab. Check your browser for the popup.
               </div>
             </div>
+
+            <!-- MY EVENTS BUTTON + PANEL -->
+            <div class="my-events-btn-wrap">
+              <button class="my-events-toggle-btn" onclick="toggleEventsPanel()" id="my-events-toggle-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18"/>
+                  <circle cx="8" cy="16" r="1" fill="currentColor"/>
+                  <circle cx="12" cy="16" r="1" fill="currentColor"/>
+                  <circle cx="16" cy="16" r="1" fill="currentColor"/>
+                </svg>
+                My Saved Events
+                <span class="my-events-badge" id="my-events-badge">0</span>
+              </button>
+
+              <div class="my-events-panel" id="my-events-panel">
+                <div class="my-events-panel-header">
+                  <div class="my-events-panel-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2"/>
+                      <path d="M16 2v4M8 2v4M3 10h18"/>
+                    </svg>
+                    Scheduled Events
+                  </div>
+                  <button class="my-events-panel-close" onclick="toggleEventsPanel()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div class="my-events-list" id="my-events-list">
+                  <!-- Populated by JS -->
+                </div>
+                <div class="events-panel-footer">
+                  <span class="events-count-label" id="events-count-label">0 events</span>
+                  <button class="clear-all-btn" onclick="clearAllEvents()">Clear All</button>
+                </div>
+              </div>
+            </div>
+            <!-- END MY EVENTS -->
+
           </div>
         </div>
 
@@ -453,11 +926,29 @@
 
 </div>
 
+<!-- Custom Confirm Dialog -->
+<div class="ssa-confirm-overlay" id="ssa-confirm-overlay" role="dialog" aria-modal="true">
+  <div class="ssa-confirm-box" id="ssa-confirm-box">
+    <div class="ssa-confirm-icon-wrap danger" id="ssa-confirm-icon-wrap">
+      <svg id="ssa-confirm-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+      </svg>
+    </div>
+    <div class="ssa-confirm-title" id="ssa-confirm-title">Are you sure?</div>
+    <div class="ssa-confirm-msg" id="ssa-confirm-msg">This action cannot be undone.</div>
+    <div class="ssa-confirm-btns">
+      <button class="ssa-confirm-cancel" id="ssa-confirm-cancel">Cancel</button>
+      <button class="ssa-confirm-ok danger" id="ssa-confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div id="ssa-toast" class="ssa-toast" role="status" aria-live="polite"></div>
 
 <script src="js/app.js" defer></script>
 
 <script>
+  /* ── DEFAULT DATE/TIME ─────────────────────────────────────── */
   (function setDefaultDateTime() {
     const inp = document.getElementById('gcal-datetime');
     if (!inp) return;
@@ -468,6 +959,27 @@
       'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   })();
 
+  /* ── EVENTS STORAGE KEY ────────────────────────────────────── */
+  const EVENTS_KEY = 'ssa_gcal_events';
+
+  function loadEvents() {
+    try {
+      const raw = localStorage.getItem(EVENTS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) { return []; }
+  }
+
+  function saveEvents(events) {
+    try { localStorage.setItem(EVENTS_KEY, JSON.stringify(events)); } catch (_) {}
+  }
+
+  function updateEventsBadge() {
+    const events = loadEvents();
+    const badge = document.getElementById('my-events-badge');
+    if (badge) badge.textContent = events.length;
+  }
+
+  /* ── ADD TO GOOGLE CALENDAR ────────────────────────────────── */
   function addToGoogleCalendar() {
     const title    = document.getElementById('gcal-title').value.trim();
     const desc     = document.getElementById('gcal-desc').value.trim();
@@ -506,9 +1018,345 @@
 
     window.open(url, '_blank');
 
+    // Save event to local storage
+    const events = loadEvents();
+    events.push({
+      id: Date.now().toString(),
+      title,
+      desc,
+      datetime,
+      duration,
+      createdAt: new Date().toISOString()
+    });
+    saveEvents(events);
+    updateEventsBadge();
+
     document.getElementById('gcal-success').classList.add('show');
     setTimeout(() => document.getElementById('gcal-success').classList.remove('show'), 5000);
+
+    // If panel is open, refresh it
+    if (document.getElementById('my-events-panel').classList.contains('open')) {
+      renderEventsList();
+    }
   }
+
+  /* ── TOGGLE EVENTS PANEL ───────────────────────────────────── */
+  function toggleEventsPanel() {
+    const panel = document.getElementById('my-events-panel');
+    const isOpen = panel.classList.contains('open');
+    if (isOpen) {
+      panel.classList.remove('open');
+    } else {
+      panel.classList.add('open');
+      renderEventsList();
+    }
+  }
+
+  /* ── RENDER EVENTS LIST ────────────────────────────────────── */
+  function renderEventsList() {
+    const events = loadEvents();
+    const list   = document.getElementById('my-events-list');
+    const countLabel = document.getElementById('events-count-label');
+    if (!list) return;
+
+    countLabel.textContent = events.length === 1 ? '1 event' : `${events.length} events`;
+
+    if (events.length === 0) {
+      list.innerHTML = `
+        <div class="no-events-msg">
+          No events saved yet.<br>Add one using the form above.
+        </div>`;
+      return;
+    }
+
+    // Sort: upcoming first, then past
+    const now = new Date();
+    const sorted = [...events].sort((a, b) => {
+      const da = new Date(a.datetime), db = new Date(b.datetime);
+      const aFuture = da >= now, bFuture = db >= now;
+      if (aFuture && !bFuture) return -1;
+      if (!aFuture && bFuture) return 1;
+      return aFuture ? da - db : db - da;
+    });
+
+    list.innerHTML = '';
+    sorted.forEach(ev => {
+      const evDate = new Date(ev.datetime);
+      const isFuture = evDate >= now;
+      const endDate = new Date(evDate.getTime() + ev.duration * 60 * 1000);
+
+      const dateStr = evDate.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+      const timeStr = evDate.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+      const endTimeStr = endDate.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+
+      const pad = n => n.toString().padStart(2, '0');
+      const dtLocal = evDate.getFullYear() + '-' + pad(evDate.getMonth()+1) + '-' + pad(evDate.getDate()) +
+                      'T' + pad(evDate.getHours()) + ':' + pad(evDate.getMinutes());
+
+      const card = document.createElement('div');
+      card.className = 'event-card';
+      card.dataset.id = ev.id;
+      card.innerHTML = `
+        <!-- VIEW MODE -->
+        <div class="event-view">
+          <div class="event-view__title">${escHtml(ev.title)}</div>
+          <div class="event-view__meta">
+            <span class="event-chip ${isFuture ? 'future' : 'past'}">
+              <img src="assets/svg/clock.svg" width="10" height="10" alt="">
+              ${isFuture ? 'Upcoming' : 'Past'}
+            </span>
+            <span class="event-chip">
+              <img src="assets/svg/calendar-small.svg" width="10" height="10" alt="">
+              ${dateStr}
+            </span>
+            <span class="event-chip">
+              <img src="assets/svg/clock.svg" width="10" height="10" alt="">
+              ${timeStr} – ${endTimeStr}
+            </span>
+            <span class="event-chip">${ev.duration} min</span>
+          </div>
+          ${ev.desc ? `<div class="event-view__desc">${escHtml(ev.desc)}</div>` : ''}
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="event-actions">
+          <button class="event-action-btn" title="Edit" onclick="startEditEvent('${ev.id}')">
+            <img src="assets/svg/edit.svg" width="11" height="11" alt="Edit">
+          </button>
+          <button class="event-action-btn delete" title="Delete" onclick="deleteEvent('${ev.id}')">
+            <img src="assets/svg/delete.svg" width="11" height="11" alt="Delete">
+          </button>
+        </div>
+
+        <!-- EDIT MODE -->
+        <div class="event-edit">
+          <div class="edit-field">
+            <label class="edit-label">Event Title</label>
+            <input class="edit-input" type="text" id="edit-title-${ev.id}" value="${escHtml(ev.title)}" maxlength="120">
+          </div>
+          <div class="edit-field">
+            <label class="edit-label">Notes / Description</label>
+            <textarea class="edit-textarea" id="edit-desc-${ev.id}" rows="2">${escHtml(ev.desc || '')}</textarea>
+          </div>
+          <div class="edit-row">
+            <div class="edit-field">
+              <label class="edit-label">Date &amp; Time</label>
+              <input class="edit-input" type="datetime-local" id="edit-dt-${ev.id}" value="${dtLocal}">
+            </div>
+            <div class="edit-field">
+              <label class="edit-label">Duration (mins)</label>
+              <input class="edit-input" type="number" id="edit-dur-${ev.id}" value="${ev.duration}" min="5" max="480" step="5">
+            </div>
+          </div>
+          <div class="edit-btns">
+            <button class="edit-cancel-btn" onclick="cancelEditEvent('${ev.id}')">Cancel</button>
+            <button class="edit-open-gcal-btn" onclick="openUpdatedInGcal('${ev.id}')">
+              <img src="assets/svg/external-link.svg" width="11" height="11" alt="">
+              Open in GCal
+            </button>
+            <button class="edit-save-btn" onclick="saveEditEvent('${ev.id}')">
+              <img src="assets/svg/success.svg" width="11" height="11" alt="">
+              Save
+            </button>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  /* ── EVENT CRUD ────────────────────────────────────────────── */
+  function startEditEvent(id) {
+    const card = document.querySelector(`.event-card[data-id="${id}"]`);
+    if (card) card.classList.add('editing');
+  }
+
+  function cancelEditEvent(id) {
+    const card = document.querySelector(`.event-card[data-id="${id}"]`);
+    if (card) card.classList.remove('editing');
+  }
+
+  function saveEditEvent(id) {
+    const titleEl = document.getElementById(`edit-title-${id}`);
+    const descEl  = document.getElementById(`edit-desc-${id}`);
+    const dtEl    = document.getElementById(`edit-dt-${id}`);
+    const durEl   = document.getElementById(`edit-dur-${id}`);
+
+    const newTitle = titleEl ? titleEl.value.trim() : '';
+    if (!newTitle || newTitle.length < 2) {
+      titleEl && (titleEl.style.borderColor = '#ef4444');
+      setTimeout(() => titleEl && (titleEl.style.borderColor = ''), 2000);
+      return;
+    }
+
+    const events = loadEvents();
+    const idx = events.findIndex(e => e.id === id);
+    if (idx === -1) return;
+
+    events[idx].title    = newTitle;
+    events[idx].desc     = descEl ? descEl.value.trim() : '';
+    events[idx].datetime = dtEl ? dtEl.value : events[idx].datetime;
+    events[idx].duration = durEl ? (parseInt(durEl.value, 10) || 60) : events[idx].duration;
+    events[idx].updatedAt = new Date().toISOString();
+
+    saveEvents(events);
+    updateEventsBadge();
+    renderEventsList();
+    showSSAToast('Event updated successfully!', 'success');
+  }
+
+  function deleteEvent(id) {
+    ssaConfirm({
+      title: 'Delete Event?',
+      msg: 'This event will be permanently removed from your saved list.',
+      okLabel: 'Delete',
+      type: 'danger',
+      onOk: () => {
+        const events = loadEvents().filter(e => e.id !== id);
+        saveEvents(events);
+        updateEventsBadge();
+        renderEventsList();
+        showSSAToast('Event deleted.', 'info');
+      }
+    });
+  }
+
+  function clearAllEvents() {
+    const count = loadEvents().length;
+    if (count === 0) { showSSAToast('No events to clear.', 'warning'); return; }
+    ssaConfirm({
+      title: 'Clear All Events?',
+      msg: `This will permanently remove all ${count} saved event${count !== 1 ? 's' : ''}. This cannot be undone.`,
+      okLabel: 'Clear All',
+      type: 'danger',
+      onOk: () => {
+        saveEvents([]);
+        updateEventsBadge();
+        renderEventsList();
+        showSSAToast('All events cleared.', 'info');
+      }
+    });
+  }
+
+  /* ── CUSTOM CONFIRM HELPER ─────────────────────────────────── */
+  let _confirmCleanup = null;
+
+  function ssaConfirm({ title, msg, okLabel = 'Confirm', type = 'danger', onOk }) {
+    const overlay   = document.getElementById('ssa-confirm-overlay');
+    const titleEl   = document.getElementById('ssa-confirm-title');
+    const msgEl     = document.getElementById('ssa-confirm-msg');
+    const okBtn     = document.getElementById('ssa-confirm-ok');
+    const cancelBtn = document.getElementById('ssa-confirm-cancel');
+    const iconWrap  = document.getElementById('ssa-confirm-icon-wrap');
+
+    titleEl.textContent = title;
+    msgEl.textContent   = msg;
+    okBtn.textContent   = okLabel;
+
+    // Reset type classes
+    okBtn.className = `ssa-confirm-ok ${type}`;
+    iconWrap.className = `ssa-confirm-icon-wrap ${type}`;
+
+    // Show
+    overlay.classList.add('show');
+
+    // Cleanup previous listeners
+    if (_confirmCleanup) _confirmCleanup();
+
+    function close() {
+      overlay.classList.remove('show');
+    }
+
+    function handleOk() {
+      close();
+      if (typeof onOk === 'function') onOk();
+    }
+
+    function handleCancel() {
+      close();
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === overlay) close();
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Escape') close();
+      if (e.key === 'Enter') handleOk();
+    }
+
+    okBtn.addEventListener('click', handleOk);
+    cancelBtn.addEventListener('click', handleCancel);
+    overlay.addEventListener('click', handleOverlayClick);
+    document.addEventListener('keydown', handleKey);
+
+    _confirmCleanup = () => {
+      okBtn.removeEventListener('click', handleOk);
+      cancelBtn.removeEventListener('click', handleCancel);
+      overlay.removeEventListener('click', handleOverlayClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+
+    // Focus ok button for keyboard accessibility
+    setTimeout(() => okBtn.focus(), 50);
+  }
+
+  function openUpdatedInGcal(id) {
+    const titleEl = document.getElementById(`edit-title-${id}`);
+    const descEl  = document.getElementById(`edit-desc-${id}`);
+    const dtEl    = document.getElementById(`edit-dt-${id}`);
+    const durEl   = document.getElementById(`edit-dur-${id}`);
+
+    const title    = titleEl ? titleEl.value.trim() : '';
+    const desc     = descEl ? descEl.value.trim() : '';
+    const datetime = dtEl ? dtEl.value : '';
+    const duration = durEl ? (parseInt(durEl.value, 10) || 60) : 60;
+
+    if (!title || !datetime) {
+      showSSAToast('Please fill in title and date/time first.', 'warning');
+      return;
+    }
+
+    function formatGCal(date) {
+      const pad = n => n.toString().padStart(2, '0');
+      return date.getFullYear() + pad(date.getMonth() + 1) + pad(date.getDate()) +
+             'T' + pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds());
+    }
+
+    const startDate = new Date(datetime);
+    const endDate   = new Date(startDate.getTime() + duration * 60 * 1000);
+    const url =
+      'https://calendar.google.com/calendar/render?action=TEMPLATE' +
+      '&text='    + encodeURIComponent(title) +
+      '&details=' + encodeURIComponent(desc || 'Scheduled via Soft Skills Assessment Tool') +
+      '&dates='   + formatGCal(startDate) + '/' + formatGCal(endDate);
+
+    window.open(url, '_blank');
+    showSSAToast('Calendar opened in new tab.', 'success');
+  }
+
+  /* ── UTILS ─────────────────────────────────────────────────── */
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function showSSAToast(msg, type) {
+    const t = document.getElementById('ssa-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = `ssa-toast ssa-toast--${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // Init badge on load
+  document.addEventListener('DOMContentLoaded', function() {
+    updateEventsBadge();
+  });
 </script>
 </body>
 </html>
