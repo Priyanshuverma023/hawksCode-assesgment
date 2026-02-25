@@ -179,6 +179,8 @@ body {
   gap: 32px;
   width: 100%;
   min-width: 0;
+  /* KEY FIX: prevent columns from stretching to equal height */
+  align-items: start;
 }
 
 .welcome-hero-tag {
@@ -354,6 +356,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: visible;
+  /* KEY FIX: card only as tall as its content */
+  align-self: start;
 }
 
 .form-card__title {
@@ -544,7 +548,9 @@ body {
   display: none;
   align-items: center;
   gap: 6px;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  word-break: break-word;
 }
 
 @media (min-width: 480px) {
@@ -561,6 +567,8 @@ body {
   min-height: 48px;
   padding: 10px 16px;
   white-space: normal;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .btn svg {
@@ -1504,11 +1512,17 @@ body {
   .welcome-grid {
     grid-template-columns: 1fr 1fr;
     gap: 36px;
+    /* Ensure both columns sit at the top, not stretched */
+    align-items: start;
   }
 
   .form-card {
     padding: 32px;
     overflow: visible;
+    /* Stick at top when user scrolls the left column */
+    position: sticky;
+    top: 80px;
+    align-self: start;
   }
 
   .form-card__title {
