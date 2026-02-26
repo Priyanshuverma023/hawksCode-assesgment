@@ -451,6 +451,34 @@ function getNotAnsweredCount() {
   return count;
 }
 
+function checkAllCategoriesMeetThreshold() {
+  return state.selectedCategories.every(cat => {
+    const qs = state.selectedQuestions[cat] || [];
+    const answered = qs.filter(q => {
+      const a = state.answers[q.id];
+      return a !== null && a !== undefined && a !== 'skipped';
+    }).length;
+    return answered >= Math.ceil(qs.length * 0.5);
+  });
+}
+
+// check while crash 
+function getCategoryShortfallMessage() {
+  const lines = [];
+  state.selectedCategories.forEach(cat => {
+    const qs = state.selectedQuestions[cat] || [];
+    const answered = qs.filter(q => {
+      const a = state.answers[q.id];
+      return a !== null && a !== undefined && a !== 'skipped';
+    }).length;
+    const needed = Math.ceil(qs.length * 0.5);
+    if (answered < needed) {
+      lines.push(`${cat}: ${answered}/${needed}`);
+    }
+  });
+  return lines.join(' · ');
+}
+
 function getSkippedCount() {
   let count = 0;
   Object.values(state.answers).forEach(v => {
@@ -471,19 +499,39 @@ function getTotalQuestionsCount() {
 function updateCompletionStatus() {
   const statusEl = document.getElementById('completion-status');
   if (!statusEl) return;
-  
-  const totalQuestions = getTotalQuestionsCount();
-  const answeredCount = getAllAnsweredCount();
-  const completionPercentage = Math.round((answeredCount / totalQuestions) * 100);
-  const neededCount = Math.ceil(totalQuestions * 0.5);
-  
-  if (completionPercentage >= 50) {
-    statusEl.textContent = `✓ ${completionPercentage}% Complete - Ready to submit`;
+
+  let allCatsMet = true;
+  let totalAnswered = 0;
+  let totalNeeded = 0;
+
+  state.selectedCategories.forEach(cat => {
+    const qs = state.selectedQuestions[cat] || [];
+    const answered = qs.filter(q => {
+      const a = state.answers[q.id];
+      return a !== null && a !== undefined && a !== 'skipped';
+    }).length;
+    const needed = Math.ceil(qs.length * 0.5);
+    totalAnswered += answered;
+    totalNeeded += needed;
+    if (answered < needed) allCatsMet = false;
+  });
+
+  if (allCatsMet) {
+    statusEl.textContent = `✓ 50%+ answered in each category — Ready to submit`;
     statusEl.style.background = 'rgba(74, 222, 128, 0.12)';
     statusEl.style.color = '#166534';
     statusEl.style.borderColor = '#86efac';
   } else {
-    statusEl.textContent = `Need ${neededCount - answeredCount} more answers (${completionPercentage}% of 50%)`;
+    // Find which categories are still short
+    const shortCats = state.selectedCategories.filter(cat => {
+      const qs = state.selectedQuestions[cat] || [];
+      const answered = qs.filter(q => {
+        const a = state.answers[q.id];
+        return a !== null && a !== undefined && a !== 'skipped';
+      }).length;
+      return answered < Math.ceil(qs.length * 0.5);
+    });
+    statusEl.textContent = `Need 50% in: ${shortCats.join(', ')}`;
     statusEl.style.background = 'rgba(251, 191, 36, 0.12)';
     statusEl.style.color = '#78350f';
     statusEl.style.borderColor = '#fbbf24';
@@ -839,20 +887,14 @@ function nextQuestion() {
   const qs = activeQuestions();
   const isLastQ   = state.activeQuestionIndex === qs.length - 1;
   const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-  
+
   if (state.reviewMode && state.reviewOnlyFlagged) {
     advanceQuestion();
   } else if (isLastQ && isLastCat) {
-    // Check 50% completion requirement
-    const totalQuestions = getTotalQuestionsCount();
-    const answeredCount = getAllAnsweredCount();
-    const completionPercentage = (answeredCount / totalQuestions) * 100;
-    
-    if (completionPercentage < 50) {
-      showToast(`Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}). You've answered ${answeredCount} so far.`, 'warning');
+    if (!checkAllCategoriesMeetThreshold()) {
+      showToast(`Answer 50%+ per category. Still short: ${getCategoryShortfallMessage()}`, 'warning');
       return;
     }
-    
     renderReviewSummary();
   } else {
     advanceQuestion();
@@ -905,16 +947,10 @@ function renderReviewSummary() {
 
 //Finish 
 function finishAssessment() {
-  // Double-check 50% completion before finalizing
-  const totalQuestions = getTotalQuestionsCount();
-  const answeredCount = getAllAnsweredCount();
-  const completionPercentage = (answeredCount / totalQuestions) * 100;
-  
-  if (completionPercentage < 50) {
-    showToast(`Cannot submit: Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}).`, 'error');
+  if (!checkAllCategoriesMeetThreshold()) {
+    showToast(`Cannot submit. Need 50%+ in every category. Short: ${getCategoryShortfallMessage()}`, 'error');
     return;
   }
-  
   stopTimer();
   saveToStorage();
   renderResults();
@@ -1138,7 +1174,15 @@ function drawDistributionChart() {
 //PDF Export
 async function generatePDF() {
   const btn = document.getElementById('res-btn-pdf');
-  btn.disabled = true; btn.textContent = 'Generating...';
+  const loader = document.getElementById('pdf-loader');
+
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  loader.style.display = 'flex';
+
+  // small delay so loader renders before heavy PDF work begins
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   try {
     const { jsPDF } = window.jspdf;
     const doc     = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
@@ -1151,7 +1195,7 @@ async function generatePDF() {
 
     // ── Helper functions ──────────────────────────────────────────────
     function checkPage(needed = 20) {
-      if (y + needed > PH - 22) { doc.addPage(); y = 18; }
+      if (y + needed > PH - 15) { doc.addPage(); y = 18; }
     }
 
     function sectionTitle(title, pageCheck = 24) {
@@ -1198,7 +1242,7 @@ async function generatePDF() {
         'Critical Gap': { fb: 'Leadership fundamentals need immediate attention. Without improvement, team performance and morale may be at risk. Structured coaching or mentoring is strongly recommended.', strength: 'Opportunity for transformational growth', weakness: 'Core leadership behaviours across all dimensions require urgent development.' },
       },
       Confidence: {
-        Exceptional:  { fb: 'You operate with high self-assurance and resilience. You take on stretch challenges, stand by your views under pressure, and recover quickly from setbacks — a powerful professional asset.', strength: 'Resilience, self-advocacy, presence under pressure, growth mindset', weakness: 'Ensure high confidence does not tip into dismissing others\' perspectives.' },
+        Exceptional:  { fb: 'You operate with high self-assurance and resilience. You take on stretch challenges, stand by your views under pressure, and recover quickly from setbacks — a powerful professional asset.', strength: 'Resilience, self-advocacy, presence under pressure, growth mindset', weakness: 'Ensure high confidence doesn\'t tip into dismissing others\' perspectives.' },
         Proficient:   { fb: 'You carry yourself with solid confidence in most situations. You speak up and take on challenges. Work on maintaining composure and assertiveness in the highest-stakes moments.', strength: 'Self-advocacy, willingness to volunteer, handling criticism constructively', weakness: 'May occasionally hesitate in very high-visibility or confrontational situations.' },
         Developing:   { fb: 'Your confidence is situational — strong in familiar territory but shaky under scrutiny or in senior settings. Building a track record of small wins will compound into greater self-assurance.', strength: 'Self-awareness, some assertiveness in familiar contexts', weakness: 'Needs development in speaking up in senior rooms, recovering from public mistakes, and self-promotion.' },
         'Needs Focus': { fb: 'Low confidence is limiting your professional impact. You may be holding back valuable contributions. Working with a coach or mentor on visibility and self-advocacy would be highly beneficial.', strength: 'Humility and self-awareness', weakness: 'Assertiveness, visibility, recovering from setbacks, and self-advocacy all need significant work.' },
@@ -1315,7 +1359,6 @@ async function generatePDF() {
     y += 6;
     try { const img = document.getElementById('chart-radar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, 75, 65); } catch (e) { }
     try { const img = document.getElementById('chart-bar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 100, y, 78, 65); } catch (e) { }
-    y += 70;
 
     // ════════════════════════════════════════════════════════════════════
     // PAGE 2 — Skill Strength Ranking
@@ -1336,7 +1379,6 @@ async function generatePDF() {
       const pct   = s.pct || 0;
       const rank  = i + 1;
 
-      // Card background
       doc.setFillColor(rank === 1 ? 255 : rank === 2 ? 248 : 245,
                        rank === 1 ? 248 : rank === 2 ? 248 : 245,
                        rank === 1 ? 220 : 248);
@@ -1344,19 +1386,15 @@ async function generatePDF() {
       doc.setDrawColor(rc.r, rc.g, rc.b); doc.setLineWidth(0.5);
       doc.roundedRect(ML, y, CW, 22, 3, 3, 'S');
 
-      // Rank number
       doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(rc.r, rc.g, rc.b);
       doc.text(`#${rank}`, ML + 5, y + 14);
 
-      // Category name
       doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(26, 26, 26);
       doc.text(cat, ML + 22, y + 9);
 
-      // Level badge
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(rc.r, rc.g, rc.b);
       doc.text(level.label, ML + 22, y + 17);
 
-      // Score + bar
       drawProgressBar(ML + 90, y + 6, CW - 110, 4, pct, level.color);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(rc.r, rc.g, rc.b);
       doc.text(`${pct}%`, PW - MR - 2, y + 14, { align: 'right' });
@@ -1364,7 +1402,6 @@ async function generatePDF() {
       y += 28;
     });
 
-    // Summary table
     y += 4;
     checkPage(16);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(26, 26, 26);
@@ -1400,20 +1437,17 @@ async function generatePDF() {
 
       checkPage(52);
 
-      // Category header
       doc.setFillColor(rc.r, rc.g, rc.b);
       doc.roundedRect(ML, y, CW, 9, 2, 2, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
       doc.text(`${cat}  ·  ${stats[cat].pct}%  ·  ${level.label}`, ML + 4, y + 6.5);
       y += 13;
 
-      // Feedback paragraph
       doc.setFont('helvetica', 'italic'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
       const fbLines = doc.splitTextToSize(analysis.fb, CW - 4);
       doc.text(fbLines, ML + 2, y);
       y += fbLines.length * 5.5 + 5;
 
-      // Strengths
       checkPage(20);
       doc.setFillColor(240, 255, 245);
       doc.roundedRect(ML, y, (CW / 2) - 3, 5 + doc.splitTextToSize(analysis.strength, (CW / 2) - 10).length * 5, 2, 2, 'F');
@@ -1423,7 +1457,6 @@ async function generatePDF() {
       const strLines = doc.splitTextToSize(analysis.strength, (CW / 2) - 10);
       doc.text(strLines, ML + 3, y + 10);
 
-      // Weaknesses
       const weakX = ML + CW / 2 + 3;
       doc.setFillColor(255, 243, 240);
       doc.roundedRect(weakX, y, (CW / 2) - 3, 5 + doc.splitTextToSize(analysis.weakness, (CW / 2) - 10).length * 5, 2, 2, 'F');
@@ -1449,7 +1482,6 @@ async function generatePDF() {
     doc.text(planDescLines, ML, y);
     y += planDescLines.length * 5 + 8;
 
-    // Priority order: lowest score first
     const priorityOrder = [...state.selectedCategories]
       .filter(c => stats[c].pct !== null)
       .sort((a, b) => (stats[a].pct || 0) - (stats[b].pct || 0));
@@ -1464,7 +1496,6 @@ async function generatePDF() {
 
       checkPage(14 + plan.length * 12);
 
-      // Header row
       doc.setFillColor(26, 26, 26);
       doc.roundedRect(ML, y, CW, 10, 2, 2, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 198, 47);
@@ -1474,12 +1505,10 @@ async function generatePDF() {
       doc.text(priority, PW - MR - 2, y + 7, { align: 'right' });
       y += 13;
 
-      // Score badge
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(rc.r, rc.g, rc.b);
       doc.text(`Current Level: ${level.label}  (${s.pct}%)`, ML, y);
       y += 7;
 
-      // Action steps
       plan.forEach((step, i) => {
         checkPage(14);
         doc.setFillColor(i % 2 === 0 ? 250 : 255, 250, 255);
@@ -1489,7 +1518,6 @@ async function generatePDF() {
         doc.setDrawColor(rc.r, rc.g, rc.b); doc.setLineWidth(0.3);
         doc.roundedRect(ML, y, CW, stepH, 2, 2, 'S');
 
-        // Step number circle
         doc.setFillColor(rc.r, rc.g, rc.b);
         doc.circle(ML + 6, y + stepH / 2, 3.5, 'F');
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
@@ -1546,7 +1574,6 @@ async function generatePDF() {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
     doc.text('Response Distribution', 20, y); y += 8;
     try { const img = document.getElementById('chart-dist').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, PW - 30, 70); } catch (e) { }
-    y += 75;
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
 
     // ── Timing Summary if timer enabled
@@ -1574,16 +1601,22 @@ async function generatePDF() {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 160);
-      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 8, { align: 'center' });
+      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 6, { align: 'center' });
     }
 
     doc.save(`SSA_${state.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
     showToast('PDF exported successfully!', 'success');
+
   } catch (err) {
-    console.error(err); showToast('PDF generation failed. Please try again.', 'error');
+    console.error(err);
+    showToast('PDF generation failed. Please try again.', 'error');
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Export PDF';
+    // keep loader visible for 2.5s so the animation completes nicely
+    setTimeout(() => {
+      loader.style.display = 'none';
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export PDF';
+    }, 2500);
   }
 }
 
@@ -1619,8 +1652,14 @@ function init() {
     const roleErr=document.getElementById('err-role');
     nameErr.textContent=''; roleErr.textContent='';
     let ok=true;
-    if (!name||name.length<2) { nameErr.textContent='Please enter a valid name.'; ok=false; }
-    if (!role||role.length<2) { roleErr.textContent='Please enter a valid role.'; ok=false; }
+    if (!name || name.length < 2 || name.length > 70) { 
+      nameErr.textContent = 'Name must be between 2 and 70 characters.'; 
+      ok = false; 
+    }
+    if (!role || role.length < 2 || role.length > 70) { 
+      roleErr.textContent = 'Role must be between 2 and 70 characters.'; 
+      ok = false; 
+    }
     if (!ok) return;
     state.employeeData      = { name, role };
     state.selectedQuestions = pickQuestions();
@@ -1631,7 +1670,6 @@ function init() {
     state.activeQuestionIndex = 0;
     state.answerLocked        = false;
     
-    // Timer checkbox
     const timerCheckbox = document.getElementById('ssa-enable-timer');
     state.timerEnabled = timerCheckbox ? timerCheckbox.checked : false;
     
@@ -1645,18 +1683,16 @@ function init() {
     const q = activeQuestion();
     toggleFlagQuestion(q.id);
   });
+
+  // ← UPDATED: per-category 50% check
   document.getElementById('ssa-btn-finish-early').addEventListener('click', () => {
-    const totalQuestions = getTotalQuestionsCount();
-    const answeredCount = getAllAnsweredCount();
-    const completionPercentage = (answeredCount / totalQuestions) * 100;
-    
-    if (completionPercentage < 50) {
-      showToast(`Please answer at least 50% of questions (${Math.ceil(totalQuestions * 0.5)} of ${totalQuestions}). You've answered ${answeredCount} so far.`, 'warning');
+    if (!checkAllCategoriesMeetThreshold()) {
+      showToast(`Answer 50%+ in every category first. Short: ${getCategoryShortfallMessage()}`, 'warning');
       return;
     }
-    
     renderReviewSummary();
   });
+
   document.getElementById('res-btn-pdf').addEventListener('click', generatePDF);
   document.getElementById('res-btn-restart').addEventListener('click', () => {
     state = {
@@ -1677,7 +1713,6 @@ function init() {
     renderCategorySelector();
   });
   
-  // Review mode button
   document.getElementById('rev-btn-review-flagged').addEventListener('click', enterReviewMode);
   document.getElementById('rev-btn-submit').addEventListener('click', finishAssessment);
   document.getElementById('rev-btn-back').addEventListener('click', () => {
