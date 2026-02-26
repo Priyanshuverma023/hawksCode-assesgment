@@ -3,14 +3,12 @@
 //Config 
 const STORAGE_KEY    = 'ssa_v2';
 
-// Dynamic question distribution
 function getQuestionsPerCategory() {
   const catCount = state.selectedCategories?.length || 4;
-  if (catCount === 1) return 40; // 1 category = 40 questions
-  return 20; // 2+ categories = 20 each
+  if (catCount === 1) return 40;
+  return 20;
 }
 
-//Category Metadata 
 const CATEGORY_META = {
   Communication: { color: '#38bdf8' },
   Leadership:    { color: '#a78bfa' },
@@ -285,7 +283,6 @@ function shuffle(arr) {
   return a;
 }
 
-// Always pick either 40 (1 cat) or 20 (2+ cats) per category
 function pickQuestions() {
   const result = {};
   const cats   = state.selectedCategories;
@@ -355,9 +352,6 @@ function getLevel(pct) {
   return               { label:'Critical Gap',  color:'#ef4444' };
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// REVIEW MODE FUNCTIONS
-// ────────────────────────────────────────────────────────────────────────────
 
 function toggleFlagQuestion(qid) {
   if (state.flaggedQuestions.has(qid)) {
@@ -399,35 +393,50 @@ function findFirstFlaggedQuestion() {
 }
 
 function getNextFlaggedQuestion() {
-  const qs = activeQuestions();
-  for (let i = state.activeQuestionIndex + 1; i < qs.length; i++) {
-    if (state.flaggedQuestions.has(qs[i].id)) return i;
+  const cats = state.selectedCategories;
+
+  // Search forward in current category
+  const currentQs = state.selectedQuestions[cats[state.activeCategoryIndex]] || [];
+  for (let i = state.activeQuestionIndex + 1; i < currentQs.length; i++) {
+    if (state.flaggedQuestions.has(currentQs[i].id)) {
+      return { catIdx: state.activeCategoryIndex, qIdx: i };
+    }
   }
-  
-  // Move to next category and search
-  if (state.activeCategoryIndex < state.selectedCategories.length - 1) {
-    state.activeCategoryIndex++;
-    state.activeQuestionIndex = -1;
-    return getNextFlaggedQuestion();
+
+  // Search in subsequent categories
+  for (let ci = state.activeCategoryIndex + 1; ci < cats.length; ci++) {
+    const qs = state.selectedQuestions[cats[ci]] || [];
+    for (let qi = 0; qi < qs.length; qi++) {
+      if (state.flaggedQuestions.has(qs[qi].id)) {
+        return { catIdx: ci, qIdx: qi };
+      }
+    }
   }
-  
+
   return null;
 }
 
 function getPrevFlaggedQuestion() {
-  const qs = activeQuestions();
+  const cats = state.selectedCategories;
+
+  // Search backward in current category
+  const currentQs = state.selectedQuestions[cats[state.activeCategoryIndex]] || [];
   for (let i = state.activeQuestionIndex - 1; i >= 0; i--) {
-    if (state.flaggedQuestions.has(qs[i].id)) return i;
+    if (state.flaggedQuestions.has(currentQs[i].id)) {
+      return { catIdx: state.activeCategoryIndex, qIdx: i };
+    }
   }
-  
-  // Move to prev category and search
-  if (state.activeCategoryIndex > 0) {
-    state.activeCategoryIndex--;
-    const prevQs = activeQuestions();
-    state.activeQuestionIndex = prevQs.length;
-    return getPrevFlaggedQuestion();
+
+  // Search in previous categories (from end)
+  for (let ci = state.activeCategoryIndex - 1; ci >= 0; ci--) {
+    const qs = state.selectedQuestions[cats[ci]] || [];
+    for (let qi = qs.length - 1; qi >= 0; qi--) {
+      if (state.flaggedQuestions.has(qs[qi].id)) {
+        return { catIdx: ci, qIdx: qi };
+      }
+    }
   }
-  
+
   return null;
 }
 
@@ -725,16 +734,16 @@ function renderQuestionCard() {
   document.getElementById('ssa-cat-label').textContent = `${cat}  ·  ${typeLabel}`;
   document.getElementById('ssa-q-num').textContent     = `Question ${qNum} of ${total}`;
   document.getElementById('ssa-q-text').textContent    = q.text;
-  
+
   // Update flag button
   const flagBtn = document.getElementById('ssa-btn-flag');
   if (flagBtn) {
     flagBtn.classList.toggle('flagged', isFlagged);
-    flagBtn.innerHTML = isFlagged 
+    flagBtn.innerHTML = isFlagged
       ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg> Flagged'
       : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-8l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg> Flag';
   }
-  
+
   // Update completion status
   updateCompletionStatus();
 
@@ -751,20 +760,26 @@ function renderQuestionCard() {
   // Prev / Next button states
   if (state.reviewMode && state.reviewOnlyFlagged) {
     const prevBtn = document.getElementById('ssa-btn-prev-q');
-    prevBtn.disabled = getPrevFlaggedQuestion() === null;
-    
-    const isLastFlagged = getNextFlaggedQuestion() === null;
     const nextBtn = document.getElementById('ssa-btn-next-q');
-    nextBtn.innerHTML = isLastFlagged
+
+    const prevResult = getPrevFlaggedQuestion();
+    const nextResult = getNextFlaggedQuestion();
+
+    prevBtn.disabled = prevResult === null;
+
+    nextBtn.innerHTML = nextResult === null
       ? 'Back to Summary'
       : 'Next Flagged <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
   } else {
-    document.getElementById('ssa-btn-prev-q').disabled =
-      (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
+    const prevBtn = document.getElementById('ssa-btn-prev-q');
+    const nextBtn = document.getElementById('ssa-btn-next-q');
+
+    prevBtn.disabled = (state.activeQuestionIndex === 0 && state.activeCategoryIndex === 0);
 
     const isLastQ   = state.activeQuestionIndex === total - 1;
     const isLastCat = state.activeCategoryIndex === state.selectedCategories.length - 1;
-    const nextBtn   = document.getElementById('ssa-btn-next-q');
+
     nextBtn.innerHTML = (isLastQ && isLastCat)
       ? 'Review & Submit'
       : 'Next <svg class="btn-arrow-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
@@ -799,7 +814,7 @@ function renderScaleOptions(q, scale, container) {
 
 function renderChoiceOptions(q, container) {
   const current  = getAnswer(q.id);
-  const shuffled = shuffle(q.options); // Always shuffle options
+  const shuffled = shuffle(q.options);
   shuffled.forEach(opt => {
     const score     = choiceToScore(opt.score);
     const isSelected = current !== null && current !== 'skipped' &&
@@ -830,11 +845,12 @@ function renderChoiceOptions(q, container) {
 function advanceQuestion() {
   stopTimer();
   const qs = activeQuestions();
-  
+
   if (state.reviewMode && state.reviewOnlyFlagged) {
-    const nextIdx = getNextFlaggedQuestion();
-    if (nextIdx !== null) {
-      state.activeQuestionIndex = nextIdx;
+    const next = getNextFlaggedQuestion();
+    if (next !== null) {
+      state.activeCategoryIndex = next.catIdx;
+      state.activeQuestionIndex = next.qIdx;
       renderAssessment();
     } else {
       renderReviewSummary();
@@ -851,6 +867,27 @@ function advanceQuestion() {
     } else {
       renderReviewSummary();
     }
+  }
+}
+
+function prevQuestion() {
+  stopTimer();
+
+  if (state.reviewMode && state.reviewOnlyFlagged) {
+    const prev = getPrevFlaggedQuestion();
+    if (prev !== null) {
+      state.activeCategoryIndex = prev.catIdx;
+      state.activeQuestionIndex = prev.qIdx;
+      renderAssessment();
+    }
+  } else {
+    if (state.activeQuestionIndex > 0) {
+      state.activeQuestionIndex--;
+    } else if (state.activeCategoryIndex > 0) {
+      state.activeCategoryIndex--;
+      state.activeQuestionIndex = activeQuestions().length - 1;
+    }
+    renderAssessment();
   }
 }
 
@@ -901,9 +938,6 @@ function nextQuestion() {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// REVIEW SUMMARY
-// ────────────────────────────────────────────────────────────────────────────
 
 function renderReviewSummary() {
   stopTimer();
@@ -1180,7 +1214,6 @@ async function generatePDF() {
   btn.textContent = 'Generating…';
   loader.style.display = 'flex';
 
-  // small delay so loader renders before heavy PDF work begins
   await new Promise(resolve => setTimeout(resolve, 100));
 
   try {
@@ -1193,7 +1226,6 @@ async function generatePDF() {
     const ML = 20, MR = 20, CW = PW - ML - MR;
     let y = 0;
 
-    // ── Helper functions ──────────────────────────────────────────────
     function checkPage(needed = 20) {
       if (y + needed > PH - 15) { doc.addPage(); y = 18; }
     }
@@ -1225,7 +1257,6 @@ async function generatePDF() {
       return textY + lines.length * lineH;
     }
 
-    // ── Feedback & Analysis Engine ────────────────────────────────────
     const FEEDBACK = {
       Communication: {
         Exceptional:  { fb: 'You demonstrate outstanding communication skills. You adapt effortlessly across formats, handle difficult conversations with confidence, and ensure clarity and alignment in all interactions.', strength: 'Adaptive communication, clarity under pressure, active listening', weakness: 'May benefit from further developing advanced negotiation or cross-cultural communication nuances.' },
@@ -1300,14 +1331,10 @@ async function generatePDF() {
       return IMPROVEMENT_PLANS[cat]?.[level.label] || ['Focus on building foundational skills in this area.'];
     }
 
-    // ── Skill Strength Ranking ────────────────────────────────────────
     const rankedCats = [...state.selectedCategories]
       .filter(c => stats[c].pct !== null)
       .sort((a, b) => (stats[b].pct || 0) - (stats[a].pct || 0));
 
-    // ════════════════════════════════════════════════════════════════════
-    // PAGE 1 — Cover
-    // ════════════════════════════════════════════════════════════════════
     doc.setFillColor(26, 26, 26); doc.rect(0, 0, PW, 50, 'F');
     doc.setFillColor(255, 198, 47); doc.rect(0, 48, PW, 2, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
@@ -1360,9 +1387,6 @@ async function generatePDF() {
     try { const img = document.getElementById('chart-radar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, 75, 65); } catch (e) { }
     try { const img = document.getElementById('chart-bar').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 100, y, 78, 65); } catch (e) { }
 
-    // ════════════════════════════════════════════════════════════════════
-    // PAGE 2 — Skill Strength Ranking
-    // ════════════════════════════════════════════════════════════════════
     doc.addPage(); y = 18;
 
     sectionTitle('SKILL STRENGTH RANKING');
@@ -1423,9 +1447,6 @@ async function generatePDF() {
       y += 7;
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // PAGE 3 — Performance Feedback & Strengths / Weaknesses
-    // ════════════════════════════════════════════════════════════════════
     doc.addPage(); y = 18;
     sectionTitle('PERFORMANCE FEEDBACK');
 
@@ -1470,9 +1491,6 @@ async function generatePDF() {
       y += boxH + 12;
     });
 
-    // ════════════════════════════════════════════════════════════════════
-    // PAGE 4 — Improvement Plans
-    // ════════════════════════════════════════════════════════════════════
     doc.addPage(); y = 18;
     sectionTitle('PERSONALISED IMPROVEMENT PLAN');
 
@@ -1530,9 +1548,6 @@ async function generatePDF() {
       y += 8;
     });
 
-    // ════════════════════════════════════════════════════════════════════
-    // PAGE 5 — Detailed Question Responses with Timing
-    // ════════════════════════════════════════════════════════════════════
     doc.addPage(); y = 15;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
     doc.text('Detailed Question Responses', 20, y); y += 6;
@@ -1569,14 +1584,12 @@ async function generatePDF() {
       y += 4;
     });
 
-    // ── Response Distribution Chart
     doc.addPage(); y = 15;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
     doc.text('Response Distribution', 20, y); y += 8;
     try { const img = document.getElementById('chart-dist').toDataURL('image/png'); if (img && img.length > 100) doc.addImage(img, 'PNG', 15, y, PW - 30, 70); } catch (e) { }
     doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
 
-    // ── Timing Summary if timer enabled
     if (state.timerEnabled) {
       doc.addPage(); y = 15;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(26, 26, 26);
@@ -1596,12 +1609,12 @@ async function generatePDF() {
       y += 12;
     }
 
-    // ── Page numbers
+    //Page numbers
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(160, 160, 160);
-      doc.text(`Page ${i} of ${pageCount}`, PW / 2, PH - 6, { align: 'center' });
+     doc.text(`Page ${i} of ${pageCount}`, ML, PH - 6);
     }
 
     doc.save(`SSA_${state.employeeData.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -1684,7 +1697,7 @@ function init() {
     toggleFlagQuestion(q.id);
   });
 
-  // ← UPDATED: per-category 50% check
+
   document.getElementById('ssa-btn-finish-early').addEventListener('click', () => {
     if (!checkAllCategoriesMeetThreshold()) {
       showToast(`Answer 50%+ in every category first. Short: ${getCategoryShortfallMessage()}`, 'warning');
